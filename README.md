@@ -1,322 +1,357 @@
-# Cal.com Chatbot Backend
+# 📅 Cal.com Chatbot
 
-A FastAPI-based chatbot backend using LangGraph and OpenAI function calling to interact with Cal.com API for booking meetings and listing events.
+AI-powered chatbot for managing Cal.com meetings using natural language. Built with FastAPI, LangGraph, GPT-4, and Streamlit.
 
-## Features
+---
 
-### Backend (FastAPI + LangGraph)
-- **Book Meetings**: Interactive conversation to collect meeting details and book appointments
-- **List Events**: Retrieve and display scheduled events
-- **Cancel Meetings**: Cancel existing meetings using natural language (e.g., "cancel my event at 3pm today")
-- **Reschedule Meetings**: Move meetings to different times (e.g., "reschedule my meeting to tomorrow at 2pm")
-- **Session Management**: Maintain conversation context across multiple messages
+## ✨ Core Features
 
-### Frontend (Streamlit)
-- **Beautiful Web UI**: Clean chat interface with sidebar
-- **Real-time Chat**: Instant messaging with the chatbot
-- **Responsive Design**: Works on desktop and mobile
-- **Zero Backend Coupling**: Completely decoupled via REST API
-- **Stable**: No dependency conflicts
+### 🤖 Smart Conversations
+- **Book Meetings** - "book a meeting tomorrow at 2pm with John, john@test.com"
+- **View Schedule** - "show my scheduled events"
+- **Cancel Meetings** - "cancel my meeting with John" → System asks for reason → Cancellation completed
+- **Reschedule Meetings** - "reschedule my 3pm meeting to tomorrow"
+- **General Chat** - "what can you help me with?"
 
-## Project Structure
+### 🎯 Technical Features
+- **Smart Intent Recognition** - GPT-4 classifies user intent (confidence ≥ 0.6 to execute)
+- **Multi-turn Conversations** - Automatically asks for missing info (date, time, reason, etc.)
+- **Session Management** - 1-hour auto-expiration, conversation history support
+- **LangSmith Tracing** - Optional monitoring of all LLM calls
+- **Clean Logging** - Only 2 log lines per API call
+
+### 🖥️ Frontend & Backend
+- **Backend** - FastAPI + LangGraph + GPT-4 + Cal.com API
+- **Frontend** - Streamlit chat interface 
+- **Fully Decoupled** - Communication via REST API
+
+---
+
+## 📁 Project Structure
 
 ```
 cal.com-chatbot/
-├── calcom_chatbot/      # Backend (FastAPI + LangGraph)
-│   ├── main.py          # FastAPI server entry point
-│   ├── state.py         # AgentState definition
-│   ├── graph.py         # LangGraph definition
-│   ├── nodes/           # LangGraph nodes
-│   │   ├── classifier.py
-│   │   ├── book_meeting.py
-│   │   ├── list_events.py
-│   │   ├── cancel_meeting.py
-│   │   ├── reschedule_meeting.py
-│   │   └── response.py
-│   ├── tools/           # External API integrations
-│   │   ├── cal_api.py   # Cal.com API wrapper
-│   │   └── openai_tools.py
+├── calcom_chatbot/          # Backend code
+│   ├── main.py             # FastAPI server (session management, API endpoints)
+│   ├── graph.py            # LangGraph workflow definition
+│   ├── state.py            # Conversation state definition
+│   ├── nodes/              # LangGraph nodes
+│   │   ├── classifier.py       # Intent classification (with confidence)
+│   │   ├── book_meeting.py     # Book meetings
+│   │   ├── cancel_meeting.py   # Cancel meetings
+│   │   ├── reschedule_meeting.py  # Reschedule meetings
+│   │   ├── list_events.py      # List events
+│   │   └── response.py         # General responses
 │   ├── prompts/
-│   │   └── templates.py
+│   │   └── templates.py    # All LLM prompt templates
+│   ├── tools/
+│   │   └── cal_api.py      # Cal.com API wrapper
 │   └── utils/
-│       └── config.py
+│       └── config.py       # Configuration (includes LangSmith setup)
 │
-├── frontend/            # Frontend (Streamlit)
-│   ├── streamlit_app.py # Main Streamlit app (~100 lines)
-│   ├── requirements.txt
-│   └── frontend_venv/   # Frontend virtual environment
+├── frontend/                # Frontend code (optional)
+│   ├── streamlit_app.py    # Streamlit chat interface
+│   ├── requirements.txt    # Frontend dependencies
+│   └── frontend_venv/      # Frontend virtual environment
 │
-├── requirements.txt     # Backend dependencies
-└── run_streamlit.sh    # Quick start script for frontend
+├── requirements.txt         # Backend dependencies
+├── .env                     # Environment variables
+└── env.example              # Environment variables template
 ```
 
-## Quick Start
+---
+
+## 🚀 Quick Start
 
 ### Option 1: With Web UI (Recommended)
 
+#### Step 1: Configure Environment
+
 ```bash
-# 1. Install backend dependencies
-pip install -r requirements.txt
+# 1. Copy environment template
+cp env.example .env
 
-# 2. Configure environment (see below)
-
-# 3. Start backend
-python -m calcom_chatbot.main
-
-# 4. Start frontend (new terminal)
-./run_streamlit.sh
-
-# 5. Open browser: http://localhost:8501
+# 2. Edit .env and fill in your credentials
+# - OPENAI_API_KEY=your_key
+# - CALCOM_API_KEY=your_key
+# - CALCOM_USER_EMAIL=your_email
+# - CALCOM_EVENT_TYPE_ID=your_id
 ```
 
-### Option 2: API Only
+#### Step 2: Install Dependencies
 
 ```bash
-# 1. Install dependencies
+# Install backend dependencies
 pip install -r requirements.txt
 
-# 2. Configure environment
-
-# 3. Start backend
-python -m calcom_chatbot.main
-
-# 4. Use curl or test_client.py
-```
-
-## Setup
-
-### 1. Install Backend Dependencies
-
-```bash
-pip install -r requirements.txt
-```
-
-### 1.5 Install Frontend Dependencies (for Web UI)
-
-```bash
+# Install frontend dependencies
 cd frontend
 pip install -r requirements.txt
 cd ..
 ```
 
-### 2. Configure Environment Variables
-
-Copy `.env.example` to `.env` and fill in your credentials:
-
-```bash
-cp .env.example .env
-```
-
-Required environment variables:
-
-- `OPENAI_API_KEY`: Your OpenAI API key (provided in requirements document)
-- `CALCOM_API_KEY`: Your Cal.com API key (get from https://app.cal.com/settings/developer/api-keys)
-- `CALCOM_USER_EMAIL`: Your Cal.com account email
-- `CALCOM_EVENT_TYPE_ID`: Your Cal.com event type ID
-- `CALCOM_API_BASE_URL`: Cal.com API base URL (default: https://api.cal.com/v2)
-
-### 3. Getting Cal.com Credentials
-
-1. Create an account at https://cal.com
-2. Go to Settings → Developer → API Keys
-3. Create a new API key
-4. Find your Event Type ID:
-   - Go to Event Types
-   - Click on an event type
-   - The ID is in the URL: `/event-types/{EVENT_TYPE_ID}`
-
-## Running the Server
-
-Run the server using Python's module syntax:
+#### Step 3: Start Backend
 
 ```bash
 python -m calcom_chatbot.main
 ```
 
-The server will start on `http://localhost:8001`
-
-## API Endpoints
-
-### POST /chat
-
-Send a message to the chatbot. Sessions auto-expire after 1 hour of inactivity.
-
-**Request:**
-```json
-{
-  "message": "Help me book a meeting",
-  "session_id": "user123"
-}
+**Expected Output**:
+```
+LangSmith tracing disabled
+INFO:     Started server process [12345]
+INFO:     Uvicorn running on http://0.0.0.0:8001
 ```
 
-**Response:**
-```json
-{
-  "response": "I'd be happy to help you book a meeting. Please provide the following details: date, time, your name, and your email.",
-  "intent": "book_meeting"
-}
+#### Step 4: Start Frontend (New Terminal)
+
+```bash
+cd frontend
+source frontend_venv/bin/activate  # If using virtual environment
+streamlit run streamlit_app.py
 ```
 
-### GET /
-
-Health check endpoint.
-
-**Response:**
-```json
-{
-  "status": "ok",
-  "message": "Cal.com Chatbot API is running"
-}
+**Or run directly**:
+```bash
+cd frontend
+streamlit run streamlit_app.py
 ```
 
-### GET /sessions
+**Expected Output**:
+```
+You can now view your Streamlit app in your browser.
 
-List all active sessions with their status.
-
-**Response:**
-```json
-{
-  "active_sessions": 2,
-  "sessions": [
-    {
-      "session_id": "user123",
-      "message_count": 6,
-      "last_access": "2024-10-26T10:30:00",
-      "expires_in_seconds": 2400
-    }
-  ]
-}
+  Local URL: http://localhost:8501
+  Network URL: http://192.168.1.100:8501
 ```
 
-### GET /sessions/{session_id}
+#### Step 5: Open Browser
 
-Get conversation history for a session (returns 404 if expired).
+Visit: **http://localhost:8501**
 
-**Response:**
-```json
-{
-  "session_id": "user123",
-  "messages": [
-    "User: Hello",
-    "Assistant: Hi! How can I help you today?"
-  ],
-  "expires_in_seconds": 3600
-}
+---
+
+### Option 2: API Only
+
+```bash
+# 1. Configure environment (same as above)
+cp env.example .env
+
+# 2. Install dependencies
+pip install -r requirements.txt
+
+# 3. Start backend
+python -m calcom_chatbot.main
+
+# 4. Test with curl
+curl -X POST http://localhost:8001/chat \
+  -H "Content-Type: application/json" \
+  -d '{"message": "show my events", "session_id": "test"}'
 ```
 
-### DELETE /sessions/{session_id}
+---
 
-Clear a session's conversation history.
+## ⚙️ Environment Variables
 
-**Response:**
-```json
-{
-  "message": "Session cleared"
-}
+### Required Configuration
+
+Configure in `.env` file:
+
+```bash
+# OpenAI
+OPENAI_API_KEY=sk-xxx
+
+# Cal.com
+CALCOM_API_KEY=cal_live_xxx
+CALCOM_USER_EMAIL=your@email.com
+CALCOM_EVENT_TYPE_ID=123456
+CALCOM_API_BASE_URL=https://api.cal.com/v2
 ```
 
-## Usage Examples
+### Optional Configuration (LangSmith Tracing)
 
-### 1. Book a Meeting
+To monitor LLM calls, add:
+
+```bash
+LANGSMITH_TRACING=true
+LANGSMITH_ENDPOINT=https://api.smith.langchain.com
+LANGSMITH_API_KEY=lsv2_pt_xxx
+LANGSMITH_PROJECT=cal.com-chatbot
+```
+
+### Getting Cal.com Credentials
+
+1. Sign up at [Cal.com](https://cal.com)
+2. Go to **Settings** → **Developer** → **API Keys**
+3. Create a new API Key
+4. Get Event Type ID:
+   - Go to **Event Types**
+   - Click on any event type
+   - ID is in URL: `/event-types/{EVENT_TYPE_ID}`
+
+---
+
+## 📡 API Endpoints
+
+Backend runs on `http://localhost:8001`
+
+### `POST /chat` - Send Message
 
 ```bash
 curl -X POST http://localhost:8001/chat \
   -H "Content-Type: application/json" \
   -d '{
-    "message": "I want to book a meeting for tomorrow at 2pm. My name is John Doe and email is john@example.com",
+    "message": "show my events",
     "session_id": "user123"
   }'
 ```
 
-### 2. List Events
+**Response**:
+```json
+{
+  "response": "You have 2 upcoming events...",
+  "intent": "list_events"
+}
+```
+
+### `GET /` - Health Check
+
+```bash
+curl http://localhost:8001/
+```
+
+### `GET /sessions` - List All Sessions
+
+```bash
+curl http://localhost:8001/sessions
+```
+
+### `GET /sessions/{session_id}` - Get Conversation History
+
+```bash
+curl http://localhost:8001/sessions/user123
+```
+
+### `DELETE /sessions/{session_id}` - Clear Session
+
+```bash
+curl -X DELETE http://localhost:8001/sessions/user123
+```
+
+---
+
+## 💬 Usage Examples
+
+### Book a Meeting
 
 ```bash
 curl -X POST http://localhost:8001/chat \
-  -H "Content-Type: application/json" \
   -d '{
-    "message": "Show me my scheduled events",
-    "session_id": "user123"
+    "message": "book a meeting tomorrow at 2pm with John, john@test.com",
+    "session_id": "demo"
   }'
 ```
 
-### 3. Cancel a Meeting
+**Multi-turn Conversation Example**:
+```
+User: "I want to book a meeting"
+Bot:  "Sure! Please provide: date, time, attendee name and email"
+User: "tomorrow at 2pm"
+Bot:  "Got it. What's the attendee name and email?"
+User: "John Doe, john@test.com"
+Bot:  "✅ Successfully booked for 2024-12-16 at 14:00..."
+```
+
+### View Schedule
 
 ```bash
 curl -X POST http://localhost:8001/chat \
-  -H "Content-Type: application/json" \
-  -d '{
-    "message": "cancel my event at 3pm today",
-    "session_id": "user123"
-  }'
+  -d '{"message": "show my events", "session_id": "demo"}'
 ```
 
-### 4. Reschedule a Meeting
+### Cancel a Meeting
+
+```bash
+# Round 1: Specify meeting
+curl -X POST http://localhost:8001/chat \
+  -d '{"message": "cancel my meeting with John", "session_id": "demo"}'
+
+# System asks for reason
+# Round 2: Provide reason
+curl -X POST http://localhost:8001/chat \
+  -d '{"message": "I am too busy", "session_id": "demo"}'
+```
+
+**Response**:
+```
+✅ Successfully canceled: Meeting scheduled for 2024-12-16T14:00:00Z
+Reason: I am too busy
+```
+
+### Reschedule a Meeting
 
 ```bash
 curl -X POST http://localhost:8001/chat \
-  -H "Content-Type: application/json" \
   -d '{
-    "message": "reschedule my meeting with John to tomorrow at 2pm",
-    "session_id": "user123"
+    "message": "reschedule my 3pm meeting to tomorrow at 2pm",
+    "session_id": "demo"
   }'
 ```
 
-### 5. General Questions
-
-```bash
-curl -X POST http://localhost:8001/chat \
-  -H "Content-Type: application/json" \
-  -d '{
-    "message": "What can you help me with?",
-    "session_id": "user123"
-  }'
+**Response**:
+```
+✅ Successfully rescheduled: Meeting
+From: 2024-12-15T15:00:00Z
+To: 2024-12-16T14:00:00Z
 ```
 
-## Architecture
+---
 
-The chatbot uses LangGraph to orchestrate a multi-node conversation flow:
+## 🏗️ Architecture
 
-1. **Classifier Node**: Determines user intent (book_meeting/list_events/cancel_meeting/reschedule_meeting/general)
-2. **Routing**: Routes to appropriate handler based on intent
-3. **Handler Nodes**:
-   - Book Meeting: Extracts details using LLM, validates date/time, creates booking
-   - List Events: Fetches user's scheduled events from Cal.com
-   - Cancel Meeting: Finds matching booking using natural language, cancels it
-   - Reschedule Meeting: Finds booking and updates to new time
-4. **Response Node**: Formats the final response
+### LangGraph Workflow
 
-## Development
+```
+User Message
+    ↓
+Classifier Node (GPT-4)
+    ├─ Intent classification + confidence scoring
+    └─ Confidence >= 0.6 → Execute, < 0.6 → general
+    ↓
+Router
+    ├─ book_meeting → Book Meeting Node
+    ├─ list_events → List Events Node
+    ├─ cancel_meeting → Cancel Meeting Node
+    ├─ reschedule_meeting → Reschedule Meeting Node
+    └─ general → Response Node
+    ↓
+Handler Node (GPT-4)
+    ├─ Parse user input
+    ├─ Call Cal.com API
+    └─ Generate response
+    ↓
+Response
+```
 
-### Code Style
+### Core Design Principles
 
-- Simple, readable code
-- Modular design with clear separation of concerns
-- No self references (using `python -m` module execution)
-- Minimal dependencies
+1. **LLM Handles Interaction** - All user messages generated by LLM, code only executes operations
+2. **Multi-turn Conversations** - Automatically asks for missing info (date, email, reason, etc.)
+3. **Session Management** - In-memory storage, 1-hour auto-expiration
 
-### Future Enhancements
+---
 
-- Reschedule event functionality
-- Query available time slots
-- Web UI using Chainlit or Streamlit
-- Persistent session storage (Redis/Database)
-- Support for multiple event types
-- Advanced timezone handling
-- Batch operations (cancel multiple meetings)
+## 🛠️ Tech Stack
 
-## Troubleshooting
+- **Backend**: FastAPI, LangGraph, LangChain
+- **LLM**: OpenAI GPT-4
+- **Frontend**: Streamlit
+- **API**: Cal.com V2 API
+- **Monitoring**: LangSmith (optional)
 
-### Common Issues
+---
 
-1. **API Key Issues**: Ensure all environment variables are set correctly in `.env`
-2. **Cal.com API Errors**: Verify your Cal.com API key has the required permissions
-3. **Event Type ID**: Make sure the event type ID exists in your Cal.com account
-
-### Logs
-
-The application logs errors to stdout. Run with verbose logging if needed.
-
-## License
+## 📝 License
 
 MIT
 
