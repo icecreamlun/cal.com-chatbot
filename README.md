@@ -2,6 +2,8 @@
 
 AI-powered chatbot for managing Cal.com meetings using natural language. Built with FastAPI, LangGraph, GPT-4, and Streamlit.
 
+![Cal.com Chatbot Interface](cal.com.png)
+
 ---
 
 ## ✨ Core Features
