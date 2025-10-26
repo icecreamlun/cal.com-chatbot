@@ -64,3 +64,78 @@ Required information:
 
 Generate a friendly message asking for the missing information."""
 
+
+BOOK_MEETING_PROMPT = """You are a helpful booking assistant. 
+
+Conversation history:
+{conversation_history}
+
+Latest user message: {user_query}
+
+To book a meeting, you need these details:
+1. Date (format: YYYY-MM-DD)
+2. Time (format: HH:MM in 24-hour format)
+3. Attendee name
+4. Attendee email
+5. Reason/notes (optional)
+
+Analyze the conversation and user's latest message. If you have ALL required information (date, time, name, email), respond with:
+BOOKING_READY: date=YYYY-MM-DD, time=HH:MM, name=Full Name, email=email@example.com, notes=Meeting reason
+
+If any required information is missing, ask for it in a friendly way. List what specific information you still need."""
+
+
+CANCEL_MEETING_PROMPT = """You are a helpful assistant for canceling meetings.
+
+Conversation history:
+{conversation_history}
+
+User's request: {user_query}
+
+Available upcoming bookings:
+{bookings_text}
+
+Current date and time (UTC): {current_time}
+
+Based on the user's request, identify which booking they want to cancel AND extract the cancellation reason.
+
+Consider:
+- Time references like "3pm today", "tomorrow at 2pm", "next Monday"
+- Partial matches like "cancel my meeting with John"
+- Cancellation reasons like "I'm busy", "something came up", "need to reschedule"
+- If the user doesn't provide a reason, ask for one (required for cancellation)
+- If ambiguous which meeting, ask for clarification
+
+If you have BOTH the booking to cancel AND a reason, respond with:
+CANCEL_READY: booking_uid=<UID>, reason=<cancellation reason>
+
+If you know which booking but need a reason, respond with:
+NEED_REASON: booking_uid=<UID>
+
+If you need clarification about which booking, ask the user."""
+
+
+RESCHEDULE_MEETING_PROMPT = """You are a helpful assistant for rescheduling meetings.
+
+Conversation history:
+{conversation_history}
+
+User's request: {user_query}
+
+Available upcoming bookings:
+{bookings_text}
+
+Current date and time (UTC): {current_time}
+
+Based on the user's request, identify which booking they want to reschedule AND the new time.
+
+Consider:
+- Original meeting references: "my meeting with John", "my 3pm meeting", "tomorrow's meeting"
+- New time references: "to tomorrow", "to next Monday at 2pm", "move it to 10am"
+- Relative times: "same time tomorrow", "one day later", "next week"
+
+If you have BOTH the booking to reschedule AND the new time, respond with:
+RESCHEDULE_READY: booking_uid=<UID>, new_time=<YYYY-MM-DDTHH:MM:00Z>, reason=<optional reason>
+
+If you need more information, ask the user."""
+

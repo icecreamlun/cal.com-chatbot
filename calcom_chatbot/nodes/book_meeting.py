@@ -2,6 +2,7 @@ from langchain_openai import ChatOpenAI
 from calcom_chatbot.state import AgentState
 from calcom_chatbot.tools.cal_api import create_booking
 from calcom_chatbot.utils.config import get_openai_api_key
+from calcom_chatbot.prompts.templates import BOOK_MEETING_PROMPT
 import re
 
 
@@ -19,25 +20,11 @@ async def book_meeting_node(state: AgentState) -> AgentState:
     # Build conversation history
     conversation_history = "\n".join(messages[-5:]) if messages else ""
     
-    # Improved prompt for extracting booking details
-    prompt = f"""You are a helpful booking assistant. 
-
-Conversation history:
-{conversation_history}
-
-Latest user message: {user_query}
-
-To book a meeting, you need these details:
-1. Date (format: YYYY-MM-DD)
-2. Time (format: HH:MM in 24-hour format)
-3. Attendee name
-4. Attendee email
-5. Reason/notes (optional)
-
-Analyze the conversation and user's latest message. If you have ALL required information (date, time, name, email), respond with:
-BOOKING_READY: date=YYYY-MM-DD, time=HH:MM, name=Full Name, email=email@example.com, notes=Meeting reason
-
-If any required information is missing, ask for it in a friendly way. List what specific information you still need."""
+    # Use prompt template
+    prompt = BOOK_MEETING_PROMPT.format(
+        conversation_history=conversation_history,
+        user_query=user_query
+    )
 
     try:
         response = llm.invoke(prompt)

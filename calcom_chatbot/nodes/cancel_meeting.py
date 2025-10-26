@@ -2,6 +2,7 @@ from langchain_openai import ChatOpenAI
 from calcom_chatbot.state import AgentState
 from calcom_chatbot.tools.cal_api import list_bookings, cancel_booking
 from calcom_chatbot.utils.config import get_openai_api_key, get_calcom_user_email
+from calcom_chatbot.prompts.templates import CANCEL_MEETING_PROMPT
 from datetime import datetime, timezone
 import re
 
@@ -44,35 +45,13 @@ async def cancel_meeting_node(state: AgentState) -> AgentState:
         
         bookings_text = "\n".join(bookings_info)
         
-        # Ask LLM to identify which booking to cancel
-        prompt = f"""You are a helpful assistant for canceling meetings.
-
-Conversation history:
-{conversation_history}
-
-User's request: {user_query}
-
-Available upcoming bookings:
-{bookings_text}
-
-Current date and time (UTC): {datetime.now(timezone.utc).isoformat()}
-
-Based on the user's request, identify which booking they want to cancel AND extract the cancellation reason.
-
-Consider:
-- Time references like "3pm today", "tomorrow at 2pm", "next Monday"
-- Partial matches like "cancel my meeting with John"
-- Cancellation reasons like "I'm busy", "something came up", "need to reschedule"
-- If the user doesn't provide a reason, ask for one (required for cancellation)
-- If ambiguous which meeting, ask for clarification
-
-If you have BOTH the booking to cancel AND a reason, respond with:
-CANCEL_READY: booking_uid=<UID>, reason=<cancellation reason>
-
-If you know which booking but need a reason, respond with:
-NEED_REASON: booking_uid=<UID>
-
-If you need clarification about which booking, ask the user."""
+        # Use prompt template
+        prompt = CANCEL_MEETING_PROMPT.format(
+            conversation_history=conversation_history,
+            user_query=user_query,
+            bookings_text=bookings_text,
+            current_time=datetime.now(timezone.utc).isoformat()
+        )
 
         response = llm.invoke(prompt)
         response_text = response.content

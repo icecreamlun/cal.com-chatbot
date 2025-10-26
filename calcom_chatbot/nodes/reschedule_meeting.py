@@ -2,6 +2,7 @@ from langchain_openai import ChatOpenAI
 from calcom_chatbot.state import AgentState
 from calcom_chatbot.tools.cal_api import list_bookings, reschedule_booking
 from calcom_chatbot.utils.config import get_openai_api_key, get_calcom_user_email
+from calcom_chatbot.prompts.templates import RESCHEDULE_MEETING_PROMPT
 from datetime import datetime, timezone, timedelta
 import re
 
@@ -44,30 +45,13 @@ async def reschedule_meeting_node(state: AgentState) -> AgentState:
         
         bookings_text = "\n".join(bookings_info)
         
-        # Ask LLM to identify which booking to reschedule and extract new time
-        prompt = f"""You are a helpful assistant for rescheduling meetings.
-
-Conversation history:
-{conversation_history}
-
-User's request: {user_query}
-
-Available upcoming bookings:
-{bookings_text}
-
-Current date and time (UTC): {datetime.now(timezone.utc).isoformat()}
-
-Based on the user's request, identify which booking they want to reschedule AND the new time.
-
-Consider:
-- Original meeting references: "my meeting with John", "my 3pm meeting", "tomorrow's meeting"
-- New time references: "to tomorrow", "to next Monday at 2pm", "move it to 10am"
-- Relative times: "same time tomorrow", "one day later", "next week"
-
-If you have BOTH the booking to reschedule AND the new time, respond with:
-RESCHEDULE_READY: booking_uid=<UID>, new_time=<YYYY-MM-DDTHH:MM:00Z>, reason=<optional reason>
-
-If you need more information, ask the user."""
+        # Use prompt template
+        prompt = RESCHEDULE_MEETING_PROMPT.format(
+            conversation_history=conversation_history,
+            user_query=user_query,
+            bookings_text=bookings_text,
+            current_time=datetime.now(timezone.utc).isoformat()
+        )
 
         response = llm.invoke(prompt)
         response_text = response.content
