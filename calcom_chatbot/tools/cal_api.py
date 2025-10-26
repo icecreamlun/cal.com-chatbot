@@ -190,3 +190,63 @@ async def list_bookings(user_email: str) -> List[Dict[str, Any]]:
         # V2 API返回格式：{"status": "success", "data": [...]}
         return data.get("data", [])
 
+
+async def cancel_booking(booking_uid: str, cancellation_reason: Optional[str] = None) -> Dict[str, Any]:
+    """
+    Cancel a booking.
+    
+    Args:
+        booking_uid: UID of the booking to cancel
+        cancellation_reason: Optional reason for cancellation
+        
+    Returns:
+        Cancellation response
+    """
+    api_key = get_calcom_api_key()
+    base_url = get_calcom_base_url()
+    
+    # Cal.com V2 API: POST /v2/bookings/{uid}/cancel
+    url = f"{base_url}/bookings/{booking_uid}/cancel"
+    
+    headers = {
+        "Authorization": f"Bearer {api_key}",
+        "Content-Type": "application/json",
+        "cal-api-version": "2024-08-13"
+    }
+    
+    # 构建payload（根据官方文档）
+    payload = {
+        "cancelSubsequentBookings": False
+    }
+    if cancellation_reason:
+        payload["cancellationReason"] = cancellation_reason
+    
+    async with httpx.AsyncClient(timeout=30.0) as client:
+        try:
+            # 打印请求详情
+            logger.info("=" * 60)
+            logger.info("📤 Cal.com API Request - CANCEL BOOKING")
+            logger.info("=" * 60)
+            logger.info(f"URL: {url}")
+            logger.info(f"Headers: {json.dumps(headers, indent=2)}")
+            logger.info(f"Payload: {json.dumps(payload, indent=2)}")
+            logger.info("=" * 60)
+            
+            # POST request (not DELETE!)
+            response = await client.post(url, headers=headers, json=payload)
+            
+            # 打印响应详情
+            logger.info("📥 Cal.com API Response")
+            logger.info(f"Status Code: {response.status_code}")
+            logger.info(f"Response Body: {response.text}")
+            logger.info("=" * 60)
+            
+            response.raise_for_status()
+            return response.json()
+        except httpx.HTTPStatusError as e:
+            # 提供更详细的错误信息
+            error_detail = e.response.text
+            logger.error(f"❌ Cal.com API Error: {e.response.status_code}")
+            logger.error(f"Error Detail: {error_detail}")
+            raise Exception(f"Cal.com API error: {e.response.status_code} - {error_detail}")
+

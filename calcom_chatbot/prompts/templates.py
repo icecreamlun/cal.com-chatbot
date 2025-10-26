@@ -5,11 +5,20 @@ INTENT_CLASSIFICATION_PROMPT = """You are a helpful assistant that classifies us
 Classify the user's message into one of these intents:
 - book_meeting: User wants to book/schedule a new meeting
 - list_events: User wants to see their scheduled events
+- cancel_meeting: User wants to cancel an existing meeting/event (including providing cancellation reasons)
 - general: General questions or chat
 
-User message: {user_query}
+Conversation history:
+{conversation_history}
 
-Respond with only one word: book_meeting, list_events, or general"""
+Latest user message: {user_query}
+
+IMPORTANT: 
+- If the conversation is about canceling a meeting and the user is providing additional information (like a reason), classify as "cancel_meeting"
+- Consider the context from conversation history to understand the user's intent
+- If the user is responding to a question about cancellation (e.g., providing a reason), it's still "cancel_meeting"
+
+Respond with only one word: book_meeting, list_events, cancel_meeting, or general"""
 
 
 EXTRACT_BOOKING_DETAILS_PROMPT = """You are a helpful assistant helping users book meetings.
