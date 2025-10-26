@@ -2,6 +2,9 @@ from langchain_openai import ChatOpenAI
 from calcom_chatbot.state import AgentState
 from calcom_chatbot.prompts.templates import INTENT_CLASSIFICATION_PROMPT
 from calcom_chatbot.utils.config import get_openai_api_key
+import logging
+
+logger = logging.getLogger(__name__)
 
 
 def classifier_node(state: AgentState) -> AgentState:
@@ -24,12 +27,46 @@ def classifier_node(state: AgentState) -> AgentState:
         conversation_history=conversation_history
     )
     response = llm.invoke(prompt)
-    intent = response.content.strip().lower()
+    response_text = response.content.strip().lower()
     
-    # Validate intent
-    if intent not in ["book_meeting", "list_events", "cancel_meeting", "reschedule_meeting", "general"]:
+    # Parse intent and confidence score
+    # Expected format: "intent:confidence_score" (e.g., "book_meeting:0.95")
+    intent = "general"
+    confidence = 0.0
+    
+    try:
+        if ":" in response_text:
+            parts = response_text.split(":")
+            predicted_intent = parts[0].strip()
+            confidence = float(parts[1].strip())
+            
+            # Validate intent
+            valid_intents = ["book_meeting", "list_events", "cancel_meeting", "reschedule_meeting", "general"]
+            if predicted_intent in valid_intents:
+                # Check confidence threshold
+                if confidence >= 0.6:
+                    intent = predicted_intent
+                else:
+                    # Low confidence - default to general
+                    intent = "general"
+            else:
+                intent = "general"
+        else:
+            # Fallback: old format without confidence
+            if response_text in ["book_meeting", "list_events", "cancel_meeting", "reschedule_meeting", "general"]:
+                intent = response_text
+            else:
+                intent = "general"
+    except (ValueError, IndexError):
+        # Parsing error - default to general
         intent = "general"
     
+    # Store both intent and confidence in state
     state["intent"] = intent
+    state["confidence"] = confidence
+    
+    # Log classification result
+    logger.info(f"🎯 Classification: intent={intent}, confidence={confidence:.2f}, query='{user_query[:50]}...'")
+    
     return state
 

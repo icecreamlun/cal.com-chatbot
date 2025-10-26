@@ -20,7 +20,12 @@ IMPORTANT:
 - Consider the context from conversation history to understand the user's intent
 - Keywords for reschedule: "reschedule", "move", "change time", "postpone", "earlier", "later"
 
-Respond with only one word: book_meeting, list_events, cancel_meeting, reschedule_meeting, or general"""
+Respond with the intent and your confidence score (0.0 to 1.0) in this exact format:
+<intent>:<confidence_score>
+
+Example: book_meeting:0.95 or general:0.30
+
+Choose the intent you are most confident about."""
 
 
 EXTRACT_BOOKING_DETAILS_PROMPT = """You are a helpful assistant helping users book meetings.
@@ -79,10 +84,15 @@ To book a meeting, you need these details:
 4. Attendee email
 5. Reason/notes (optional)
 
-Analyze the conversation and user's latest message. If you have ALL required information (date, time, name, email), respond with:
+If you have ALL required information (date, time, name, email), respond with:
 BOOKING_READY: date=YYYY-MM-DD, time=HH:MM, name=Full Name, email=email@example.com, notes=Meeting reason
 
-If any required information is missing, ask for it in a friendly way. List what specific information you still need."""
+Otherwise, generate a natural, friendly message to the user:
+- Ask for missing information (be specific about what you need)
+- Confirm what information you already have
+- Guide them on the format if needed
+
+Be conversational and helpful. Don't use any special format unless you have all the info for BOOKING_READY."""
 
 
 CANCEL_MEETING_PROMPT = """You are a helpful assistant for canceling meetings.
@@ -99,20 +109,16 @@ Current date and time (UTC): {current_time}
 
 Based on the user's request, identify which booking they want to cancel AND extract the cancellation reason.
 
-Consider:
-- Time references like "3pm today", "tomorrow at 2pm", "next Monday"
-- Partial matches like "cancel my meeting with John"
-- Cancellation reasons like "I'm busy", "something came up", "need to reschedule"
-- If the user doesn't provide a reason, ask for one (required for cancellation)
-- If ambiguous which meeting, ask for clarification
-
 If you have BOTH the booking to cancel AND a reason, respond with:
 CANCEL_READY: booking_uid=<UID>, reason=<cancellation reason>
 
-If you know which booking but need a reason, respond with:
-NEED_REASON: booking_uid=<UID>
+Otherwise, generate a natural, friendly message to the user:
+- If no bookings exist, tell them there are no events to cancel
+- If you need to know which meeting, ask them to clarify (mention the available meetings)
+- If you need a cancellation reason, ask for one in a friendly way
+- If the request is ambiguous, ask for more details
 
-If you need clarification about which booking, ask the user."""
+Be conversational and helpful. Don't use any special format unless you have all the info for CANCEL_READY."""
 
 
 RESCHEDULE_MEETING_PROMPT = """You are a helpful assistant for rescheduling meetings.
@@ -129,13 +135,15 @@ Current date and time (UTC): {current_time}
 
 Based on the user's request, identify which booking they want to reschedule AND the new time.
 
-Consider:
-- Original meeting references: "my meeting with John", "my 3pm meeting", "tomorrow's meeting"
-- New time references: "to tomorrow", "to next Monday at 2pm", "move it to 10am"
-- Relative times: "same time tomorrow", "one day later", "next week"
-
 If you have BOTH the booking to reschedule AND the new time, respond with:
 RESCHEDULE_READY: booking_uid=<UID>, new_time=<YYYY-MM-DDTHH:MM:00Z>, reason=<optional reason>
 
-If you need more information, ask the user."""
+Otherwise, generate a natural, friendly message to the user:
+- If no bookings exist, tell them there are no events to reschedule
+- If you need to know which meeting, ask them to clarify (mention the available meetings)
+- If you need to know the new time, ask for it in a friendly way
+- If the request is ambiguous, ask for more details
+- Make sure the new time is in the future
+
+Be conversational and helpful. Don't use any special format unless you have all the info for RESCHEDULE_READY."""
 

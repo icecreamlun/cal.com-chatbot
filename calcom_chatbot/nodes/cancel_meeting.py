@@ -21,14 +21,10 @@ async def cancel_meeting_node(state: AgentState) -> AgentState:
     # Build conversation history
     conversation_history = "\n".join(messages[-5:]) if messages else ""
     
-    # First, get all upcoming bookings
     try:
+        # Get all upcoming bookings
         user_email = get_calcom_user_email()
         bookings = await list_bookings(user_email)
-        
-        if not bookings:
-            state["final_response"] = "You don't have any upcoming events to cancel."
-            return state
         
         # Format bookings for LLM
         bookings_info = []
@@ -38,14 +34,13 @@ async def cancel_meeting_node(state: AgentState) -> AgentState:
             start = booking.get("start", "")
             attendees = booking.get("attendees", [])
             attendee_names = ", ".join([a.get("name", "Unknown") for a in attendees])
-            
             bookings_info.append(
                 f"UID: {booking_uid}, Title: {title}, Start: {start}, Attendees: {attendee_names}"
             )
         
-        bookings_text = "\n".join(bookings_info)
+        bookings_text = "\n".join(bookings_info) if bookings else "No upcoming bookings"
         
-        # Use prompt template
+        # Let LLM handle all user interaction
         prompt = CANCEL_MEETING_PROMPT.format(
             conversation_history=conversation_history,
             user_query=user_query,
@@ -54,83 +49,44 @@ async def cancel_meeting_node(state: AgentState) -> AgentState:
         )
 
         response = llm.invoke(prompt)
-        response_text = response.content
+        response_text = response.content.strip()
         
-        # Check if we need a reason
-        if response_text.startswith("NEED_REASON:"):
-            # Parse to get the UID
-            cancel_info = response_text.replace("NEED_REASON:", "").strip()
-            uid_match = re.search(r'booking_uid=([a-zA-Z0-9]+)', cancel_info)
-            
-            if uid_match:
-                booking_uid = uid_match.group(1)
-                booking_to_cancel = next((b for b in bookings if b.get("uid") == booking_uid), None)
-                
-                if booking_to_cancel:
-                    title = booking_to_cancel.get("title", "Meeting")
-                    start = booking_to_cancel.get("start", "")
-                    state["final_response"] = f"I found your meeting: {title} scheduled for {start}.\n\nTo cancel it, please provide a reason for the cancellation (e.g., 'I'm busy', 'something came up', etc.)"
-                else:
-                    state["final_response"] = "I couldn't find that booking. Please try again."
-            else:
-                state["final_response"] = "Please provide a reason for canceling the meeting."
-        
-        # Check if we have identified the booking to cancel with reason
-        elif response_text.startswith("CANCEL_READY:"):
-            # Parse the cancellation details
-            cancel_info = response_text.replace("CANCEL_READY:", "").strip()
-            
+        # Only check if ready to cancel, otherwise return LLM's message
+        if response_text.startswith("CANCEL_READY:"):
             # Extract booking UID and reason
-            uid_match = re.search(r'booking_uid=([a-zA-Z0-9]+)', cancel_info)
-            reason_match = re.search(r'reason=(.+?)$', cancel_info)
+            uid_match = re.search(r'booking_uid=([a-zA-Z0-9]+)', response_text)
+            reason_match = re.search(r'reason=(.+?)(?:,|$)', response_text, re.DOTALL)
             
             if uid_match and reason_match:
                 booking_uid = uid_match.group(1)
                 reason = reason_match.group(1).strip()
                 
-                # Find the booking to get details for confirmation
-                booking_to_cancel = next((b for b in bookings if b.get("uid") == booking_uid), None)
-                
-                if not booking_to_cancel:
-                    state["final_response"] = f"❌ Could not find booking with UID {booking_uid}."
-                    return state
-                
-                # Cancel the booking with reason
+                # Execute cancellation
                 try:
                     result = await cancel_booking(booking_uid, reason)
                     
-                    # Get booking details for user-friendly message
-                    title = booking_to_cancel.get("title", "Meeting")
-                    start = booking_to_cancel.get("start", "")
-                    
-                    state["api_response"] = result
-                    state["final_response"] = f"✅ Successfully canceled: {title} scheduled for {start}\nReason: {reason}"
-                    
-                except Exception as e:
-                    error_msg = str(e)
-                    # Check if it's a "reason required" error
-                    if "reason is required" in error_msg.lower():
-                        state["final_response"] = f"To cancel this meeting, please provide a reason for the cancellation."
-                    else:
-                        state["final_response"] = f"❌ Failed to cancel the booking: {error_msg}"
-            else:
-                # Missing reason
-                if uid_match:
-                    booking_uid = uid_match.group(1)
+                    # Get booking details for success message
                     booking_to_cancel = next((b for b in bookings if b.get("uid") == booking_uid), None)
                     if booking_to_cancel:
                         title = booking_to_cancel.get("title", "Meeting")
-                        state["final_response"] = f"To cancel '{title}', please provide a reason for the cancellation."
+                        start = booking_to_cancel.get("start", "")
+                        state["final_response"] = f"✅ Successfully canceled: {title} scheduled for {start}\nReason: {reason}"
                     else:
-                        state["final_response"] = "Please provide a reason for canceling the meeting."
-                else:
-                    state["final_response"] = "I couldn't identify which booking to cancel. Please be more specific."
+                        state["final_response"] = f"✅ Successfully canceled the booking.\nReason: {reason}"
+                    
+                    state["api_response"] = result
+                    
+                except Exception as e:
+                    state["final_response"] = f"❌ Failed to cancel: {str(e)}"
+            else:
+                # Parsing failed, let LLM handle it
+                state["final_response"] = response_text
         else:
-            # LLM is asking for clarification
+            # LLM is handling user interaction (asking for info, clarifying, etc.)
             state["final_response"] = response_text
         
     except Exception as e:
-        state["final_response"] = f"I encountered an error: {str(e)}. Please try again."
+        state["final_response"] = f"Error: {str(e)}"
     
     return state
 

@@ -20,7 +20,7 @@ async def book_meeting_node(state: AgentState) -> AgentState:
     # Build conversation history
     conversation_history = "\n".join(messages[-5:]) if messages else ""
     
-    # Use prompt template
+    # Let LLM handle all user interaction
     prompt = BOOK_MEETING_PROMPT.format(
         conversation_history=conversation_history,
         user_query=user_query
@@ -28,19 +28,16 @@ async def book_meeting_node(state: AgentState) -> AgentState:
 
     try:
         response = llm.invoke(prompt)
-        response_text = response.content
+        response_text = response.content.strip()
         
-        # Check if we have all information
+        # Only check if ready to book, otherwise return LLM's message
         if response_text.startswith("BOOKING_READY:"):
-            # Parse the booking details
-            booking_info = response_text.replace("BOOKING_READY:", "").strip()
-            
-            # Extract details using regex
-            date_match = re.search(r'date=(\d{4}-\d{2}-\d{2})', booking_info)
-            time_match = re.search(r'time=(\d{2}:\d{2})', booking_info)
-            name_match = re.search(r'name=([^,]+)', booking_info)
-            email_match = re.search(r'email=([^\s,]+)', booking_info)
-            notes_match = re.search(r'notes=(.+?)(?:,|$)', booking_info)
+            # Extract booking details
+            date_match = re.search(r'date=(\d{4}-\d{2}-\d{2})', response_text)
+            time_match = re.search(r'time=(\d{2}:\d{2})', response_text)
+            name_match = re.search(r'name=([^,]+)', response_text)
+            email_match = re.search(r'email=([^\s,]+)', response_text)
+            notes_match = re.search(r'notes=(.+?)(?:,|$)', response_text, re.DOTALL)
             
             if all([date_match, time_match, name_match, email_match]):
                 date = date_match.group(1)
@@ -49,20 +46,7 @@ async def book_meeting_node(state: AgentState) -> AgentState:
                 email = email_match.group(1).strip()
                 notes = notes_match.group(1).strip() if notes_match else ""
                 
-                # Validate date is in the future
-                from datetime import datetime, timezone
-                try:
-                    booking_datetime = datetime.fromisoformat(f"{date}T{time}:00")
-                    current_time = datetime.now(timezone.utc).replace(tzinfo=None)
-                    
-                    if booking_datetime <= current_time:
-                        state["final_response"] = f"❌ The date {date} at {time} is in the past. Please choose a future date and time."
-                        return state
-                except ValueError:
-                    state["final_response"] = f"❌ Invalid date or time format. Please use YYYY-MM-DD for date and HH:MM for time."
-                    return state
-                
-                # Create booking
+                # Execute booking
                 try:
                     start_time = f"{date}T{time}:00Z"
                     result = await create_booking(
@@ -73,25 +57,25 @@ async def book_meeting_node(state: AgentState) -> AgentState:
                     )
                     
                     state["api_response"] = result
-                    state["final_response"] = f"✅ Great! I've successfully booked your meeting for {date} at {time}. A confirmation has been sent to {email}."
+                    state["final_response"] = f"✅ Successfully booked your meeting for {date} at {time}. Confirmation sent to {email}."
+                    
                 except Exception as e:
                     error_msg = str(e)
-                    
-                    # 特殊处理各种错误类型
                     if "past" in error_msg.lower():
-                        state["final_response"] = f"❌ Cannot book a meeting in the past. The date {date} at {time} has already passed. Please choose a future date and time."
+                        state["final_response"] = f"❌ Cannot book in the past. Please choose a future date and time."
                     elif "already has booking" in error_msg.lower() or "not available" in error_msg.lower():
-                        state["final_response"] = f"❌ This time slot ({date} at {time}) is not available. Either you already have a booking at this time, or the host is not available.\n\n💡 Suggestions:\n- Try a different time on the same day\n- Choose another date\n- Use 'Show me my scheduled events' to see existing bookings"
+                        state["final_response"] = f"❌ Time slot not available. Try a different time or date."
                     else:
-                        state["final_response"] = f"❌ I encountered an error while booking: {error_msg}\n\nPlease check:\n- The time slot is available\n- Your Cal.com configuration is correct"
+                        state["final_response"] = f"❌ Booking failed: {error_msg}"
             else:
-                state["final_response"] = "I couldn't parse all the booking details. Please provide the date, time, your name, and email clearly."
+                # Parsing failed, let LLM handle it
+                state["final_response"] = response_text
         else:
-            # LLM is asking for more information
+            # LLM is handling user interaction (asking for info, clarifying, etc.)
             state["final_response"] = response_text
         
     except Exception as e:
-        state["final_response"] = f"I encountered an error: {str(e)}. Please try again."
+        state["final_response"] = f"Error: {str(e)}"
     
     return state
 
