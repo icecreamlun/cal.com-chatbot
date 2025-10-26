@@ -3,6 +3,7 @@ from pydantic import BaseModel
 from typing import Dict, List, Optional, Tuple
 from calcom_chatbot.graph import compiled_graph
 from calcom_chatbot.state import AgentState
+from calcom_chatbot.utils.config import setup_langsmith
 import uvicorn
 import traceback
 import logging
@@ -12,6 +13,9 @@ import asyncio
 # Configure logging
 logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)
+
+# Setup LangSmith tracing
+setup_langsmith()
 
 
 app = FastAPI(
