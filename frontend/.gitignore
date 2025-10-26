@@ -1,0 +1,22 @@
+# Frontend virtual environment
+frontend_venv/
+
+# Chainlit
+.chainlit/
+
+# Environment
+.env
+
+# Python
+__pycache__/
+*.pyc
+*.pyo
+*.pyd
+.Python
+
+# IDE
+.vscode/
+.idea/
+*.swp
+*.swo
+

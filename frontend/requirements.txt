@@ -1,0 +1,3 @@
+# Frontend dependencies for Cal.com Chatbot
+streamlit==1.29.0
+httpx==0.24.1

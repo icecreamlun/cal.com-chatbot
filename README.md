@@ -4,41 +4,99 @@ A FastAPI-based chatbot backend using LangGraph and OpenAI function calling to i
 
 ## Features
 
+### Backend (FastAPI + LangGraph)
 - **Book Meetings**: Interactive conversation to collect meeting details and book appointments
 - **List Events**: Retrieve and display scheduled events
 - **Cancel Meetings**: Cancel existing meetings using natural language (e.g., "cancel my event at 3pm today")
 - **Reschedule Meetings**: Move meetings to different times (e.g., "reschedule my meeting to tomorrow at 2pm")
 - **Session Management**: Maintain conversation context across multiple messages
 
+### Frontend (Streamlit)
+- **Beautiful Web UI**: Clean chat interface with sidebar
+- **Real-time Chat**: Instant messaging with the chatbot
+- **Responsive Design**: Works on desktop and mobile
+- **Zero Backend Coupling**: Completely decoupled via REST API
+- **Stable**: No dependency conflicts
+
 ## Project Structure
 
 ```
-calcom_chatbot/
-├── main.py              # FastAPI server entry point
-├── state.py             # AgentState definition
-├── graph.py             # LangGraph definition
-├── nodes/               # LangGraph nodes
-│   ├── classifier.py    # Intent classification
-│   ├── book_meeting.py  # Booking flow handler
-│   ├── list_events.py   # List events handler
-│   ├── cancel_meeting.py # Cancel meeting handler
-│   ├── reschedule_meeting.py # Reschedule meeting handler
-│   └── response.py      # Response formatter
-├── tools/               # External API integrations
-│   ├── cal_api.py       # Cal.com API wrapper
-│   └── openai_tools.py  # OpenAI function definitions
-├── prompts/             # Prompt templates
-│   └── templates.py
-└── utils/               # Utilities
-    └── config.py        # Environment config
+cal.com-chatbot/
+├── calcom_chatbot/      # Backend (FastAPI + LangGraph)
+│   ├── main.py          # FastAPI server entry point
+│   ├── state.py         # AgentState definition
+│   ├── graph.py         # LangGraph definition
+│   ├── nodes/           # LangGraph nodes
+│   │   ├── classifier.py
+│   │   ├── book_meeting.py
+│   │   ├── list_events.py
+│   │   ├── cancel_meeting.py
+│   │   ├── reschedule_meeting.py
+│   │   └── response.py
+│   ├── tools/           # External API integrations
+│   │   ├── cal_api.py   # Cal.com API wrapper
+│   │   └── openai_tools.py
+│   ├── prompts/
+│   │   └── templates.py
+│   └── utils/
+│       └── config.py
+│
+├── frontend/            # Frontend (Streamlit)
+│   ├── streamlit_app.py # Main Streamlit app (~100 lines)
+│   ├── requirements.txt
+│   └── frontend_venv/   # Frontend virtual environment
+│
+├── requirements.txt     # Backend dependencies
+└── run_streamlit.sh    # Quick start script for frontend
+```
+
+## Quick Start
+
+### Option 1: With Web UI (Recommended)
+
+```bash
+# 1. Install backend dependencies
+pip install -r requirements.txt
+
+# 2. Configure environment (see below)
+
+# 3. Start backend
+python -m calcom_chatbot.main
+
+# 4. Start frontend (new terminal)
+./run_streamlit.sh
+
+# 5. Open browser: http://localhost:8501
+```
+
+### Option 2: API Only
+
+```bash
+# 1. Install dependencies
+pip install -r requirements.txt
+
+# 2. Configure environment
+
+# 3. Start backend
+python -m calcom_chatbot.main
+
+# 4. Use curl or test_client.py
 ```
 
 ## Setup
 
-### 1. Install Dependencies
+### 1. Install Backend Dependencies
 
 ```bash
 pip install -r requirements.txt
+```
+
+### 1.5 Install Frontend Dependencies (for Web UI)
+
+```bash
+cd frontend
+pip install -r requirements.txt
+cd ..
 ```
 
 ### 2. Configure Environment Variables
@@ -261,4 +319,5 @@ The application logs errors to stdout. Run with verbose logging if needed.
 ## License
 
 MIT
+
 
