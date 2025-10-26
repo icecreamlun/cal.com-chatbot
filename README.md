@@ -7,6 +7,7 @@ A FastAPI-based chatbot backend using LangGraph and OpenAI function calling to i
 - **Book Meetings**: Interactive conversation to collect meeting details and book appointments
 - **List Events**: Retrieve and display scheduled events
 - **Cancel Meetings**: Cancel existing meetings using natural language (e.g., "cancel my event at 3pm today")
+- **Reschedule Meetings**: Move meetings to different times (e.g., "reschedule my meeting to tomorrow at 2pm")
 - **Session Management**: Maintain conversation context across multiple messages
 
 ## Project Structure
@@ -21,6 +22,7 @@ calcom_chatbot/
 │   ├── book_meeting.py  # Booking flow handler
 │   ├── list_events.py   # List events handler
 │   ├── cancel_meeting.py # Cancel meeting handler
+│   ├── reschedule_meeting.py # Reschedule meeting handler
 │   └── response.py      # Response formatter
 ├── tools/               # External API integrations
 │   ├── cal_api.py       # Cal.com API wrapper
@@ -190,7 +192,18 @@ curl -X POST http://localhost:8001/chat \
   }'
 ```
 
-### 4. General Questions
+### 4. Reschedule a Meeting
+
+```bash
+curl -X POST http://localhost:8001/chat \
+  -H "Content-Type: application/json" \
+  -d '{
+    "message": "reschedule my meeting with John to tomorrow at 2pm",
+    "session_id": "user123"
+  }'
+```
+
+### 5. General Questions
 
 ```bash
 curl -X POST http://localhost:8001/chat \
@@ -205,12 +218,13 @@ curl -X POST http://localhost:8001/chat \
 
 The chatbot uses LangGraph to orchestrate a multi-node conversation flow:
 
-1. **Classifier Node**: Determines user intent (book_meeting/list_events/cancel_meeting/general)
+1. **Classifier Node**: Determines user intent (book_meeting/list_events/cancel_meeting/reschedule_meeting/general)
 2. **Routing**: Routes to appropriate handler based on intent
 3. **Handler Nodes**:
    - Book Meeting: Extracts details using LLM, validates date/time, creates booking
    - List Events: Fetches user's scheduled events from Cal.com
    - Cancel Meeting: Finds matching booking using natural language, cancels it
+   - Reschedule Meeting: Finds booking and updates to new time
 4. **Response Node**: Formats the final response
 
 ## Development

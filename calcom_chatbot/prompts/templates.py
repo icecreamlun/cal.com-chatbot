@@ -6,6 +6,7 @@ Classify the user's message into one of these intents:
 - book_meeting: User wants to book/schedule a new meeting
 - list_events: User wants to see their scheduled events
 - cancel_meeting: User wants to cancel an existing meeting/event (including providing cancellation reasons)
+- reschedule_meeting: User wants to reschedule/move an existing meeting to a different time
 - general: General questions or chat
 
 Conversation history:
@@ -14,11 +15,12 @@ Conversation history:
 Latest user message: {user_query}
 
 IMPORTANT: 
-- If the conversation is about canceling a meeting and the user is providing additional information (like a reason), classify as "cancel_meeting"
+- If the conversation is about canceling and the user is providing info, classify as "cancel_meeting"
+- If the conversation is about rescheduling and the user is providing info, classify as "reschedule_meeting"
 - Consider the context from conversation history to understand the user's intent
-- If the user is responding to a question about cancellation (e.g., providing a reason), it's still "cancel_meeting"
+- Keywords for reschedule: "reschedule", "move", "change time", "postpone", "earlier", "later"
 
-Respond with only one word: book_meeting, list_events, cancel_meeting, or general"""
+Respond with only one word: book_meeting, list_events, cancel_meeting, reschedule_meeting, or general"""
 
 
 EXTRACT_BOOKING_DETAILS_PROMPT = """You are a helpful assistant helping users book meetings.

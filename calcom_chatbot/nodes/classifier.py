@@ -27,7 +27,7 @@ def classifier_node(state: AgentState) -> AgentState:
     intent = response.content.strip().lower()
     
     # Validate intent
-    if intent not in ["book_meeting", "list_events", "cancel_meeting", "general"]:
+    if intent not in ["book_meeting", "list_events", "cancel_meeting", "reschedule_meeting", "general"]:
         intent = "general"
     
     state["intent"] = intent

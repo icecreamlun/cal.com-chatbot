@@ -140,6 +140,70 @@ async def create_booking(
             raise Exception(f"Cal.com API error: {e.response.status_code} - {error_detail}")
 
 
+async def reschedule_booking(
+    booking_uid: str,
+    new_start_time: str,
+    rescheduling_reason: Optional[str] = None
+) -> Dict[str, Any]:
+    """
+    Reschedule a booking to a new time.
+    
+    Args:
+        booking_uid: UID of the booking to reschedule
+        new_start_time: New start time in ISO format (e.g., "2024-12-20T14:00:00Z")
+        rescheduling_reason: Optional reason for rescheduling
+        
+    Returns:
+        Rescheduled booking details
+    """
+    api_key = get_calcom_api_key()
+    base_url = get_calcom_base_url()
+    
+    # Cal.com V2 API: POST /v2/bookings/{uid}/reschedule
+    url = f"{base_url}/bookings/{booking_uid}/reschedule"
+    
+    headers = {
+        "Authorization": f"Bearer {api_key}",
+        "Content-Type": "application/json",
+        "cal-api-version": "2024-08-13"
+    }
+    
+    # Construct payload
+    payload = {
+        "start": new_start_time
+    }
+    if rescheduling_reason:
+        payload["reschedulingReason"] = rescheduling_reason
+    
+    async with httpx.AsyncClient(timeout=30.0) as client:
+        try:
+            # Print request details
+            logger.info("=" * 60)
+            logger.info("📤 Cal.com API Request - RESCHEDULE BOOKING")
+            logger.info("=" * 60)
+            logger.info(f"URL: {url}")
+            logger.info(f"Headers: {json.dumps(headers, indent=2)}")
+            logger.info(f"Payload: {json.dumps(payload, indent=2)}")
+            logger.info("=" * 60)
+            
+            # POST request
+            response = await client.post(url, headers=headers, json=payload)
+            
+            # Print response details
+            logger.info("📥 Cal.com API Response")
+            logger.info(f"Status Code: {response.status_code}")
+            logger.info(f"Response Body: {response.text}")
+            logger.info("=" * 60)
+            
+            response.raise_for_status()
+            return response.json()
+        except httpx.HTTPStatusError as e:
+            error_detail = e.response.text
+            logger.error(f"❌ Cal.com API Error: {e.response.status_code}")
+            logger.error(f"Error Detail: {error_detail}")
+            raise Exception(f"Cal.com API error: {e.response.status_code} - {error_detail}")
+
+
 async def list_bookings(user_email: str) -> List[Dict[str, Any]]:
     """
     List all bookings for a user.
