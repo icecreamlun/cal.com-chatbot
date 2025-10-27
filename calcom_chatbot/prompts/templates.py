@@ -83,6 +83,8 @@ Conversation history:
 
 Latest user message: {user_query}
 
+IMPORTANT: If the user message already starts with "BOOKING_READY:", return it EXACTLY as is with no additional text or explanation.
+
 To book a meeting, you need these details:
 1. Date (format: YYYY-MM-DD)
 2. Time (format: HH:MM in 24-hour format)

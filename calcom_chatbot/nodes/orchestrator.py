@@ -89,30 +89,17 @@ async def orchestrator_node(state: AgentState) -> AgentState:
 
 
 def parse_plan(plan_text: str) -> list:
-    """
-    Parse LLM plan into task list.
-    
-    Expected format (ReWOO-style):
-    E1: list_events
-    E2: get_slots(date=2025-10-29)
-    E3: book_meeting(date=2025-10-29, time=#E2[first_slot], name=John, email=john@test.com)
-    
-    Or simple format:
-    1. list_events
-    2. get_slots(date=2025-10-29)
-    """
+    """Parse LLM plan into task list (supports E1:/1. formats)."""
     tasks = []
-    
-    lines = plan_text.strip().split('\n')
-    for line in lines:
+    for line in plan_text.strip().split('\n'):
         line = line.strip()
         if not line:
             continue
         
-        # Support both "E1:" and "1." formats
+        # Remove "E1:" or "1." prefix
         line = re.sub(r'^(E\d+:|[\d]+\.)\s*', '', line)
         
-        # Parse action and params
+        # Parse action(params) or just action
         if '(' in line:
             action = line.split('(')[0].strip()
             params_str = line.split('(')[1].split(')')[0]
@@ -121,77 +108,60 @@ def parse_plan(plan_text: str) -> list:
             action = line.strip()
             params = {}
         
-        tasks.append({
-            "action": action,
-            "params": params
-        })
+        tasks.append({"action": action, "params": params})
     
     return tasks
 
 
 def parse_params(params_str: str) -> dict:
-    """
-    Parse parameters from string.
-    
-    Supports variable references like:
-    date=2025-10-29, time=#E2[first_slot], name=John
-    """
+    """Parse 'key=value, key2=value2' string into dict."""
     params = {}
-    
-    # Split by comma, handle key=value pairs
     for param in params_str.split(','):
         param = param.strip()
         if '=' in param:
             key, value = param.split('=', 1)
             params[key.strip()] = value.strip()
-    
     return params
 
 
 def replace_variables(params: dict, variables: dict) -> dict:
-    """Replace variable references like #E1 with actual values."""
+    """Replace #E1 references with actual values."""
     resolved = {}
-    
     for key, value in params.items():
         if isinstance(value, str) and value.startswith('#E'):
-            # Extract variable reference: #E1 or #E1[first_slot]
-            var_match = re.match(r'#(E\d+)(\[.+\])?', value)
-            if var_match:
-                var_name = var_match.group(1)
-                if var_name in variables:
-                    resolved[key] = variables[var_name]
-                else:
-                    resolved[key] = value  # Keep original if not found
-            else:
-                resolved[key] = value
+            var_name = value[1:]  # Remove '#' prefix
+            resolved[key] = variables.get(var_name, value)
         else:
             resolved[key] = value
-    
     return resolved
 
 
 async def execute_task(task: dict, state: AgentState, variables: dict) -> str:
-    """
-    Execute a single task (Executor in plan-and-execute).
-    
-    Supports variable references: can use results from previous tasks.
-    """
-    action = task['action']
-    params = task['params']
-    
-    # Resolve variable references in params
-    resolved_params = replace_variables(params, variables)
-    
-    # Import node functions
+    """Execute a single task using the appropriate node."""
     from calcom_chatbot.nodes.list_events import list_events_node
     from calcom_chatbot.nodes.get_slots import get_slots_node
     from calcom_chatbot.nodes.book_meeting import book_meeting_node
     from calcom_chatbot.nodes.cancel_meeting import cancel_meeting_node
     from calcom_chatbot.nodes.reschedule_meeting import reschedule_meeting_node
     
-    # Create task-specific state
+    # Map actions to node functions
+    node_map = {
+        "list_events": list_events_node,
+        "get_slots": get_slots_node,
+        "book_meeting": book_meeting_node,
+        "cancel_meeting": cancel_meeting_node,
+        "reschedule_meeting": reschedule_meeting_node
+    }
+    
+    action = task['action']
+    params = replace_variables(task['params'], variables)
+    
+    if action not in node_map:
+        return f"Unknown action: {action}"
+    
+    # Create task state and execute
     task_state = AgentState(
-        user_query=format_task_query(action, resolved_params),
+        user_query=format_task_query(action, params),
         messages=state.get("messages", []),
         intent=action,
         confidence=1.0,
@@ -200,20 +170,7 @@ async def execute_task(task: dict, state: AgentState, variables: dict) -> str:
         final_response=""
     )
     
-    # Execute the appropriate node
-    if action == "list_events":
-        result_state = await list_events_node(task_state)
-    elif action == "get_slots":
-        result_state = await get_slots_node(task_state)
-    elif action == "book_meeting":
-        result_state = await book_meeting_node(task_state)
-    elif action == "cancel_meeting":
-        result_state = await cancel_meeting_node(task_state)
-    elif action == "reschedule_meeting":
-        result_state = await reschedule_meeting_node(task_state)
-    else:
-        return f"Unknown action: {action}"
-    
+    result_state = await node_map[action](task_state)
     return result_state.get("final_response", "No result")
 
 
@@ -245,22 +202,13 @@ def format_task_query(action: str, params: dict) -> str:
 
 
 def format_task_results(tasks: list, variables: dict) -> str:
-    """
-    Format task results for Solver.
-    
-    Args:
-        tasks: List of task definitions
-        variables: Dict mapping E1, E2, etc. to their results
-    """
-    formatted = []
-    
+    """Format task results for Solver LLM."""
+    results = []
     for i, task in enumerate(tasks, 1):
         task_id = f"E{i}"
         action = task['action']
         params = task.get('params', {})
         result = variables.get(task_id, "No result")
-        
-        formatted.append(f"{task_id}: {action}({params})\nResult: {result}\n")
-    
-    return "\n".join(formatted)
+        results.append(f"{task_id}: {action}({params})\nResult: {result}\n")
+    return "\n".join(results)
 
