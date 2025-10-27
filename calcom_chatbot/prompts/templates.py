@@ -5,6 +5,7 @@ INTENT_CLASSIFICATION_PROMPT = """You are a helpful assistant that classifies us
 Classify the user's message into one of these intents:
 - book_meeting: User wants to book/schedule a new meeting
 - list_events: User wants to see their scheduled events
+- get_slots: User wants to check available time slots for a specific date
 - cancel_meeting: User wants to cancel an existing meeting/event (including providing cancellation reasons)
 - reschedule_meeting: User wants to reschedule/move an existing meeting to a different time
 - general: General questions or chat
@@ -17,8 +18,10 @@ Latest user message: {user_query}
 IMPORTANT: 
 - If the conversation is about canceling and the user is providing info, classify as "cancel_meeting"
 - If the conversation is about rescheduling and the user is providing info, classify as "reschedule_meeting"
+- If asking about "available times", "free slots", "when are you free", classify as "get_slots"
 - Consider the context from conversation history to understand the user's intent
 - Keywords for reschedule: "reschedule", "move", "change time", "postpone", "earlier", "later"
+- Keywords for get_slots: "available", "free", "slots", "when are you free", "what times"
 
 Respond with the intent and your confidence score (0.0 to 1.0) in this exact format:
 <intent>:<confidence_score>
@@ -146,4 +149,26 @@ Otherwise, generate a natural, friendly message to the user:
 - Make sure the new time is in the future
 
 Be conversational and helpful. Don't use any special format unless you have all the info for RESCHEDULE_READY."""
+
+
+GET_SLOTS_PROMPT = """You are a helpful assistant for checking available time slots.
+
+Conversation history:
+{conversation_history}
+
+User's request: {user_query}
+
+Current date and time (UTC): {current_time}
+
+Based on the user's request, identify which date they want to check for available time slots.
+
+If you have the date, respond with:
+SLOTS_READY: date=YYYY-MM-DD
+
+Otherwise, generate a natural, friendly message to the user:
+- Ask for the specific date they want to check
+- Suggest checking for today, tomorrow, or a specific date
+- Guide them on the format if needed
+
+Be conversational and helpful. Don't use any special format unless you have the date for SLOTS_READY."""
 

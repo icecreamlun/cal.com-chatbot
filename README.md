@@ -11,6 +11,7 @@ AI-powered chatbot for managing Cal.com meetings using natural language. Built w
 ### 🤖 Smart Conversations
 - **Book Meetings** - "book a meeting tomorrow at 2pm with John, john@test.com"
 - **View Schedule** - "show my scheduled events"
+- **Check Available Slots** - "what times are available tomorrow?"
 - **Cancel Meetings** - "cancel my meeting with John" → System asks for reason → Cancellation completed
 - **Reschedule Meetings** - "reschedule my 3pm meeting to tomorrow"
 - **General Chat** - "what can you help me with?"
@@ -43,6 +44,7 @@ cal.com-chatbot/
 │   │   ├── cancel_meeting.py   # Cancel meetings
 │   │   ├── reschedule_meeting.py  # Reschedule meetings
 │   │   ├── list_events.py      # List events
+│   │   ├── get_slots.py        # Get All slots
 │   │   └── response.py         # General responses
 │   ├── prompts/
 │   │   └── templates.py    # All LLM prompt templates
@@ -271,6 +273,26 @@ curl -X POST http://localhost:8001/chat \
   -d '{"message": "show my events", "session_id": "demo"}'
 ```
 
+### Check Available Slots
+
+```bash
+curl -X POST http://localhost:8001/chat \
+  -d '{"message": "what times are available tomorrow?", "session_id": "demo"}'
+```
+
+**Multi-turn Example**:
+```
+User: "when are you free?"
+Bot:  "Which date would you like to check for available time slots?"
+User: "tomorrow"
+Bot:  "✅ Available time slots for 2024-12-16:
+       📅 2024-12-16:
+         • 09:00 - 09:30
+         • 10:00 - 10:30
+         • 14:00 - 14:30
+         • 15:00 - 15:30"
+```
+
 ### Cancel a Meeting
 
 ```bash
@@ -323,6 +345,7 @@ Classifier Node (GPT-4)
 Router
     ├─ book_meeting → Book Meeting Node
     ├─ list_events → List Events Node
+    ├─ get_slots → Get Slots Node
     ├─ cancel_meeting → Cancel Meeting Node
     ├─ reschedule_meeting → Reschedule Meeting Node
     └─ general → Response Node

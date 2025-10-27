@@ -29,13 +29,14 @@ async def get_available_slots(date: str) -> List[Dict[str, Any]]:
     url = f"{base_url}/slots"
     
     headers = {
-        "cal-api-version": "2024-08-13"
+        "cal-api-version": "2024-09-04"
     }
     
     params = {
         "eventTypeId": event_type_id,
-        "startTime": f"{date}T00:00:00Z",
-        "endTime": f"{date}T23:59:59Z"
+        "start": date,  # Can be just YYYY-MM-DD (defaults to 00:00:00)
+        "end": date,    # Can be just YYYY-MM-DD (defaults to 23:59:59)
+        "format": "range"  # Get start and end times for each slot
     }
     
     async with httpx.AsyncClient() as client:
