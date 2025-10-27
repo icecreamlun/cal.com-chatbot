@@ -14,7 +14,7 @@ AI-powered chatbot for managing Cal.com meetings using natural language. Built w
 - **Check Available Slots** - "what times are available tomorrow?"
 - **Cancel Meetings** - "cancel my meeting with John" → System asks for reason → Cancellation completed
 - **Reschedule Meetings** - "reschedule my 3pm meeting to tomorrow"
-- **Batch Operations** - "cancel all my meetings, I'm too busy" or "book 2 meetings tomorrow at 9am and 2pm with Alice" (NEW!)
+- **Batch Operations** - "book 2 meetings tomorrow at 9am and 2pm with Alice"
 - **Multi-Step Tasks** - "show my schedule, then book tomorrow at 2pm with Alice, alice@test.com"
 - **General Chat** - "what can you help me with?"
 
@@ -34,7 +34,7 @@ AI-powered chatbot for managing Cal.com meetings using natural language. Built w
 
 ---
 
-## 📁 Project Structure
+## Project Structure
 
 ```
 cal.com-chatbot/
@@ -160,7 +160,7 @@ curl -X POST http://localhost:8001/chat \
 
 ---
 
-## ⚙️ Environment Variables
+## Environment Variables
 
 ### Required Configuration
 
@@ -200,7 +200,7 @@ LANGSMITH_PROJECT=cal.com-chatbot
 
 ---
 
-## 📡 API Endpoints
+## API Endpoints
 
 Backend runs on `http://localhost:8001`
 
@@ -336,23 +336,6 @@ To: 2024-12-16T14:00:00Z
 
 ### Batch Operations (NEW!)
 
-#### Cancel All Meetings
-```bash
-curl -X POST http://localhost:8001/chat \
-  -d '{
-    "message": "cancel all my meetings, I am too busy",
-    "session_id": "demo"
-  }'
-```
-
-**Response**:
-```
-✅ Successfully canceled all 2 meetings:
-- Meeting with John at 2pm
-- Meeting with Alice at 3pm
-Reason: I am too busy
-```
-
 #### Book Multiple Meetings
 ```bash
 curl -X POST http://localhost:8001/chat \
@@ -369,14 +352,6 @@ curl -X POST http://localhost:8001/chat \
 - Bob at 2:00 PM
 ```
 
-#### Reschedule All Meetings
-```bash
-curl -X POST http://localhost:8001/chat \
-  -d '{
-    "message": "reschedule all my meetings to next Monday, emergency came up",
-    "session_id": "demo"
-  }'
-```
 
 ---
 
@@ -429,7 +404,7 @@ curl -X POST http://localhost:8001/chat \
 
 ---
 
-## 🏗️ Architecture
+## Architecture
 
 ### LangGraph Workflow
 
