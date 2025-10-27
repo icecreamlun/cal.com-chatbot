@@ -41,7 +41,7 @@ def classifier_node(state: AgentState) -> AgentState:
             confidence = float(parts[1].strip())
             
             # Validate intent
-            valid_intents = ["book_meeting", "list_events", "get_slots", "cancel_meeting", "reschedule_meeting", "general"]
+            valid_intents = ["book_meeting", "list_events", "get_slots", "cancel_meeting", "reschedule_meeting", "multi_step", "general"]
             if predicted_intent in valid_intents:
                 # Check confidence threshold
                 if confidence >= 0.6:
@@ -53,7 +53,7 @@ def classifier_node(state: AgentState) -> AgentState:
                 intent = "general"
         else:
             # Fallback: old format without confidence
-            if response_text in ["book_meeting", "list_events", "get_slots", "cancel_meeting", "reschedule_meeting", "general"]:
+            if response_text in ["book_meeting", "list_events", "get_slots", "cancel_meeting", "reschedule_meeting", "multi_step", "general"]:
                 intent = response_text
             else:
                 intent = "general"

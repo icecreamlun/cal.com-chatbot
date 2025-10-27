@@ -8,6 +8,7 @@ Classify the user's message into one of these intents:
 - get_slots: User wants to check available time slots for a specific date
 - cancel_meeting: User wants to cancel an existing meeting/event (including providing cancellation reasons)
 - reschedule_meeting: User wants to reschedule/move an existing meeting to a different time
+- multi_step: User wants to do MULTIPLE actions in sequence (e.g., "check schedule then book meeting", "show free times and book first slot")
 - general: General questions or chat
 
 Conversation history:
@@ -19,14 +20,16 @@ IMPORTANT:
 - If the conversation is about canceling and the user is providing info, classify as "cancel_meeting"
 - If the conversation is about rescheduling and the user is providing info, classify as "reschedule_meeting"
 - If asking about "available times", "free slots", "when are you free", classify as "get_slots"
+- If user wants to do 2+ actions (indicated by "then", "and then", "after that", etc.), classify as "multi_step"
 - Consider the context from conversation history to understand the user's intent
 - Keywords for reschedule: "reschedule", "move", "change time", "postpone", "earlier", "later"
 - Keywords for get_slots: "available", "free", "slots", "when are you free", "what times"
+- Keywords for multi_step: "then", "and then", "after", "first...then", "check...and book"
 
 Respond with the intent and your confidence score (0.0 to 1.0) in this exact format:
 <intent>:<confidence_score>
 
-Example: book_meeting:0.95 or general:0.30
+Example: book_meeting:0.95 or multi_step:0.90 or general:0.30
 
 Choose the intent you are most confident about."""
 
@@ -171,4 +174,87 @@ Otherwise, generate a natural, friendly message to the user:
 - Guide them on the format if needed
 
 Be conversational and helpful. Don't use any special format unless you have the date for SLOTS_READY."""
+
+
+ORCHESTRATOR_PROMPT = """You are an intelligent task planner for a Cal.com booking system using Plan-and-Execute architecture.
+
+Conversation history:
+{conversation_history}
+
+User's request: {user_query}
+
+Current date and time (UTC): {current_time}
+
+Available actions:
+1. list_events - Show user's scheduled meetings
+2. get_slots(date=YYYY-MM-DD) - Check available time slots for a date
+3. book_meeting(date=YYYY-MM-DD, time=HH:MM, name=Name, email=email@test.com, notes=optional) - Book a meeting
+4. cancel_meeting - Cancel a meeting
+5. reschedule_meeting - Reschedule a meeting
+
+PLANNING RULES:
+1. Convert ALL relative dates to absolute dates (YYYY-MM-DD):
+   - "tomorrow" → calculate from current_time (e.g., 2025-10-29)
+   - "next Monday" → calculate actual date
+   - "in 3 days" → calculate actual date
+
+2. Use 24-hour format: 14:00 not 2pm, 09:00 not 9am
+
+3. For book_meeting, you MUST have: date, time, name, email
+   - If ANY is missing, DO NOT create PLAN - ask user for details
+
+4. You can reference previous task results using #E1, #E2 syntax (ReWOO-style):
+   - E1: get_slots(date=2025-10-29)
+   - E2: book_meeting(time=#E1[first_slot], ...)
+
+If you have ALL required information, generate a PLAN:
+PLAN:
+E1: action_name
+E2: action_name(param=value)
+E3: action_name(param1=value1, param2=value2)
+
+Example 1:
+User: "Show my schedule, then book tomorrow at 14:00 with John at john@test.com"
+Current time: 2025-10-28T10:00:00Z
+Response:
+PLAN:
+E1: list_events
+E2: book_meeting(date=2025-10-29, time=14:00, name=John, email=john@test.com)
+
+Example 2:
+User: "Check available times tomorrow, then book the first slot with Alice at alice@test.com"
+Current time: 2025-10-28T10:00:00Z
+Response:
+PLAN:
+E1: get_slots(date=2025-10-29)
+E2: book_meeting(date=2025-10-29, time=09:00, name=Alice, email=alice@test.com, notes=First available slot)
+
+Example 3 (Missing info - DO NOT PLAN):
+User: "Check my schedule and book tomorrow"
+Response:
+I can help you with that! To book a meeting tomorrow, I'll need:
+- What time?
+- Who will attend (name and email)?
+
+Please provide these details.
+
+If information is incomplete, ask for it naturally. Only generate PLAN when you have everything needed.
+"""
+
+
+SOLVER_PROMPT = """You are a helpful assistant summarizing the results of multiple tasks.
+
+User's original request: {user_query}
+
+Tasks executed and their results:
+{task_results}
+
+Generate a comprehensive, natural response that:
+1. Addresses the user's original request
+2. Summarizes what was accomplished
+3. Presents information clearly and concisely
+4. Is friendly and helpful
+
+Response:
+"""
 

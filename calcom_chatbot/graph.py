@@ -7,6 +7,7 @@ from calcom_chatbot.nodes.list_events import list_events_node
 from calcom_chatbot.nodes.get_slots import get_slots_node
 from calcom_chatbot.nodes.cancel_meeting import cancel_meeting_node
 from calcom_chatbot.nodes.reschedule_meeting import reschedule_meeting_node
+from calcom_chatbot.nodes.orchestrator import orchestrator_node
 from calcom_chatbot.nodes.response import response_node
 
 
@@ -24,6 +25,8 @@ def route_by_intent(state: AgentState) -> str:
         return "cancel_meeting"
     elif intent == "reschedule_meeting":
         return "reschedule_meeting"
+    elif intent == "multi_step":
+        return "orchestrator"
     else:
         return "response"
 
@@ -36,6 +39,7 @@ graph.add_node("list_events", list_events_node)
 graph.add_node("get_slots", get_slots_node)
 graph.add_node("cancel_meeting", cancel_meeting_node)
 graph.add_node("reschedule_meeting", reschedule_meeting_node)
+graph.add_node("orchestrator", orchestrator_node)
 graph.add_node("response", response_node)
 
 graph.add_edge(START, "classifier")
@@ -45,6 +49,7 @@ graph.add_conditional_edges("classifier", route_by_intent, {
     "get_slots": "get_slots",
     "cancel_meeting": "cancel_meeting",
     "reschedule_meeting": "reschedule_meeting",
+    "orchestrator": "orchestrator",
     "response": "response"
 })
 graph.add_edge("book_meeting", "response")
@@ -52,6 +57,7 @@ graph.add_edge("list_events", "response")
 graph.add_edge("get_slots", "response")
 graph.add_edge("cancel_meeting", "response")
 graph.add_edge("reschedule_meeting", "response")
+graph.add_edge("orchestrator", "response")
 graph.add_edge("response", END)
 
 compiled_graph = graph.compile()

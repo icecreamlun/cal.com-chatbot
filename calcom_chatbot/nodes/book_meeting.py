@@ -47,26 +47,16 @@ async def book_meeting_node(state: AgentState) -> AgentState:
                 notes = notes_match.group(1).strip() if notes_match else ""
                 
                 # Execute booking
-                try:
-                    start_time = f"{date}T{time}:00Z"
-                    result = await create_booking(
-                        start_time=start_time,
-                        attendee_email=email,
-                        attendee_name=name,
-                        notes=notes
-                    )
-                    
-                    state["api_response"] = result
-                    state["final_response"] = f"✅ Successfully booked your meeting for {date} at {time}. Confirmation sent to {email}."
-                    
-                except Exception as e:
-                    error_msg = str(e)
-                    if "past" in error_msg.lower():
-                        state["final_response"] = f"❌ Cannot book in the past. Please choose a future date and time."
-                    elif "already has booking" in error_msg.lower() or "not available" in error_msg.lower():
-                        state["final_response"] = f"❌ Time slot not available. Try a different time or date."
-                    else:
-                        state["final_response"] = f"❌ Booking failed: {error_msg}"
+                start_time = f"{date}T{time}:00Z"
+                result = await create_booking(
+                    start_time=start_time,
+                    attendee_email=email,
+                    attendee_name=name,
+                    notes=notes
+                )
+                
+                state["api_response"] = result
+                state["final_response"] = f"✅ Successfully booked your meeting for {date} at {time}. Confirmation sent to {email}."
             else:
                 # Parsing failed, let LLM handle it
                 state["final_response"] = response_text
@@ -75,7 +65,13 @@ async def book_meeting_node(state: AgentState) -> AgentState:
             state["final_response"] = response_text
         
     except Exception as e:
-        state["final_response"] = f"Error: {str(e)}"
+        error_msg = str(e)
+        if "past" in error_msg.lower():
+            state["final_response"] = f"❌ Cannot book in the past. Please choose a future date and time."
+        elif "already has booking" in error_msg.lower() or "not available" in error_msg.lower():
+            state["final_response"] = f"❌ Time slot not available. Try a different time or date."
+        else:
+            state["final_response"] = f"❌ Booking failed: {error_msg}"
     
     return state
 
