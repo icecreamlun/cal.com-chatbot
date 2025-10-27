@@ -6,25 +6,28 @@ AI-powered chatbot for managing Cal.com meetings using natural language. Built w
 
 ---
 
-## ✨ Core Features
+## Core Features
 
-### 🤖 Smart Conversations
+### Smart Conversations
 - **Book Meetings** - "book a meeting tomorrow at 2pm with John, john@test.com"
 - **View Schedule** - "show my scheduled events"
 - **Check Available Slots** - "what times are available tomorrow?"
 - **Cancel Meetings** - "cancel my meeting with John" → System asks for reason → Cancellation completed
 - **Reschedule Meetings** - "reschedule my 3pm meeting to tomorrow"
-- **Multi-Step Tasks** - "show my schedule, then book tomorrow at 2pm with Alice, alice@test.com" (NEW!)
+- **Batch Operations** - "cancel all my meetings, I'm too busy" or "book 2 meetings tomorrow at 9am and 2pm with Alice" (NEW!)
+- **Multi-Step Tasks** - "show my schedule, then book tomorrow at 2pm with Alice, alice@test.com"
 - **General Chat** - "what can you help me with?"
 
-### 🎯 Technical Features
-- **Smart Intent Recognition** - GPT-4 classifies user intent (confidence ≥ 0.6 to execute)
+### Technical Features
+- **Smart Intent Recognition** - GPT-4 classifies user intent with confidence scoring (≥ 0.6 to execute)
+- **Batch Operation Detection** - Automatically detects "all", "both", "multiple" keywords and routes to orchestrator
 - **Multi-turn Conversations** - Automatically asks for missing info (date, time, reason, etc.)
+- **Plan-and-Execute Architecture** - Planner → Executor → Solver for complex multi-step tasks
 - **Session Management** - 1-hour auto-expiration, conversation history support
 - **LangSmith Tracing** - Optional monitoring of all LLM calls
-- **Clean Logging** - Only 2 log lines per API call
+- **Clean Logging** - Concise request/response logging for debugging
 
-### 🖥️ Frontend & Backend
+### Frontend & Backend
 - **Backend** - FastAPI + LangGraph + GPT-4 + Cal.com API
 - **Frontend** - Streamlit chat interface 
 - **Fully Decoupled** - Communication via REST API
@@ -331,7 +334,53 @@ From: 2024-12-15T15:00:00Z
 To: 2024-12-16T14:00:00Z
 ```
 
-### Multi-Step Complex Tasks (NEW!)
+### Batch Operations (NEW!)
+
+#### Cancel All Meetings
+```bash
+curl -X POST http://localhost:8001/chat \
+  -d '{
+    "message": "cancel all my meetings, I am too busy",
+    "session_id": "demo"
+  }'
+```
+
+**Response**:
+```
+✅ Successfully canceled all 2 meetings:
+- Meeting with John at 2pm
+- Meeting with Alice at 3pm
+Reason: I am too busy
+```
+
+#### Book Multiple Meetings
+```bash
+curl -X POST http://localhost:8001/chat \
+  -d '{
+    "message": "book tomorrow at 9am with Alice at alice@test.com and at 2pm with Bob at bob@test.com",
+    "session_id": "demo"
+  }'
+```
+
+**Response**:
+```
+✅ Successfully booked 2 meetings:
+- Alice at 9:00 AM
+- Bob at 2:00 PM
+```
+
+#### Reschedule All Meetings
+```bash
+curl -X POST http://localhost:8001/chat \
+  -d '{
+    "message": "reschedule all my meetings to next Monday, emergency came up",
+    "session_id": "demo"
+  }'
+```
+
+---
+
+### Multi-Step Complex Tasks
 
 ```bash
 curl -X POST http://localhost:8001/chat \
@@ -363,14 +412,20 @@ curl -X POST http://localhost:8001/chat \
    - Returns final response
 
 **Example Tasks**:
+
+*Sequential operations*:
 - "Check my schedule and book tomorrow at 2pm with John, john@test.com"
-- "Show me free slots for next Monday, then book the morning slot with Alice"
+- "Show me free slots for next Monday, then book at 2pm with Alice"
 - "List my events, then cancel the one with John"
 
+*Batch operations*:
+- "Book 3 meetings tomorrow at 9am, 11am, and 2pm with different people"
+
 **Benefits**:
--  Faster execution (fewer LLM calls)
--  Lower cost (LLM only for planning & summarizing)
--  Better quality (forced to "think through" entire task)
+- Faster execution (fewer LLM calls)
+- Lower cost (LLM only for planning & summarizing)
+- Better quality (forced to "think through" entire task)
+- Batch processing (handle multiple meetings at once)
 
 ---
 
@@ -424,6 +479,69 @@ Response
 - **Frontend**: Streamlit
 - **API**: Cal.com V2 API
 - **Monitoring**: LangSmith (optional)
+
+---
+
+## 🚧 Future Plans
+
+### Planned Features
+
+#### Enhanced Batch Operations
+- [ ] **Smart Batch Processing** - Automatically detect number of meetings instead of creating fixed number of tasks
+- [ ] **Selective Batch Operations** - "cancel all meetings with John" or "reschedule all tomorrow's meetings"
+- [ ] **Batch Confirmation** - Show preview before executing batch operations
+
+#### Smarter Intelligence
+- [ ] **Natural Time Understanding** - Better support for "next week", "in 2 hours", "end of month"
+- [ ] **Timezone Support** - Automatic timezone detection and conversion
+- [ ] **Conflict Detection** - Warn users about scheduling conflicts before booking
+- [ ] **Smart Suggestions** - "You have 3 meetings tomorrow, would you like to reschedule some?"
+
+#### Analytics & Insights
+- [ ] **Meeting Statistics** - "How many meetings did I have this week?"
+- [ ] **Time Analysis** - "How much time did I spend in meetings this month?"
+- [ ] **Attendee Insights** - "Who do I meet with most often?"
+- [ ] **Calendar Heatmap** - Visual representation of meeting density
+
+#### Notifications & Reminders
+- [ ] **Meeting Reminders** - Proactive reminders before meetings
+- [ ] **Daily Digest** - "Here's your schedule for today"
+- [ ] **Email/SMS Integration** - Send reminders via email or SMS
+- [ ] **Webhook Support** - Custom notifications to external systems
+
+#### Advanced Features
+- [ ] **Custom Meeting Types** - Support different event types (15min, 30min, 1hr)
+- [ ] **Meeting Templates** - Save frequently used meeting configurations
+- [ ] **Recurring Meetings** - "Book weekly meetings with John every Monday at 2pm"
+- [ ] **Meeting Notes** - Add and retrieve meeting notes/agendas
+- [ ] **Attendee Management** - Add/remove multiple attendees
+- [ ] **Location Support** - Specify meeting locations (Zoom, Google Meet, physical location)
+
+#### Multi-language & Accessibility
+- [ ] **Multi-language Support** - Support for Chinese, Spanish, French, etc.
+- [ ] **Voice Input/Output** - Voice commands and text-to-speech responses
+- [ ] **Mobile App** - Native mobile applications
+- [ ] **Slack/Teams Integration** - Chatbot available in Slack and Microsoft Teams
+
+#### Enterprise Features
+- [ ] **Team Calendars** - Manage team members' calendars
+- [ ] **Permission Management** - Role-based access control
+- [ ] **Audit Logs** - Track all calendar operations
+- [ ] **Custom Workflows** - Define custom approval workflows for meetings
+- [ ] **Integration Ecosystem** - Connect with CRM, project management tools
+
+#### Performance & Scalability
+- [ ] **Caching Layer** - Cache frequent queries for faster responses
+- [ ] **Database Integration** - Persistent storage for conversation history
+- [ ] **Load Balancing** - Support for high-traffic scenarios
+- [ ] **API Rate Limiting** - Protect against abuse
+
+#### Developer Experience
+- [ ] **GraphQL API** - Alternative API interface
+- [ ] **Webhooks** - Real-time event notifications
+- [ ] **SDK/Client Libraries** - Python, JavaScript, Go SDKs
+- [ ] **Comprehensive Testing** - Unit tests, integration tests, E2E tests
+- [ ] **Documentation** - API docs, developer guides, video tutorials
 
 ---
 

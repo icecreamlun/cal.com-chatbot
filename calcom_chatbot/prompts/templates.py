@@ -16,15 +16,34 @@ Conversation history:
 
 Latest user message: {user_query}
 
-IMPORTANT: 
-- If the conversation is about canceling and the user is providing info, classify as "cancel_meeting"
-- If the conversation is about rescheduling and the user is providing info, classify as "reschedule_meeting"
-- If asking about "available times", "free slots", "when are you free", classify as "get_slots"
-- If user wants to do 2+ actions (indicated by "then", "and then", "after that", etc.), classify as "multi_step"
-- Consider the context from conversation history to understand the user's intent
-- Keywords for reschedule: "reschedule", "move", "change time", "postpone", "earlier", "later"
-- Keywords for get_slots: "available", "free", "slots", "when are you free", "what times"
-- Keywords for multi_step: "then", "and then", "after", "first...then", "check...and book"
+CRITICAL CLASSIFICATION RULES (Check in order):
+
+1. **BATCH OPERATIONS → Always "multi_step"** (highest priority):
+   - User mentions "all", "both", "multiple", "every" + action word
+   - Examples that MUST be multi_step:
+     * "cancel all my meetings" → multi_step (NOT cancel_meeting!)
+     * "cancel both meetings" → multi_step
+     * "reschedule all to tomorrow" → multi_step  
+     * "book 3 meetings" → multi_step
+     * "book two meetings" → multi_step
+   - Even if they provide a reason, still multi_step!
+
+2. **SEQUENTIAL OPERATIONS → "multi_step"**:
+   - User wants 2+ actions: "then", "and then", "after that", "first...then"
+   - Example: "show my schedule, then book a meeting"
+
+3. **SINGLE OPERATIONS**:
+   - cancel_meeting: "cancel my meeting" (singular, no "all"/"both")
+   - reschedule_meeting: "reschedule my meeting" (singular)
+   - book_meeting: "book a meeting" (singular)
+   - list_events: "show my events"
+   - get_slots: "what times are available"
+
+4. **CONTEXT AWARENESS**:
+   - If conversation history shows system asked for multiple times/details
+   - User replies "14:00 and 15:00" → multi_step (continuing batch operation)
+
+Always consider conversation history to understand the user's intent.
 
 Respond with the intent and your confidence score (0.0 to 1.0) in this exact format:
 <intent>:<confidence_score>
@@ -117,13 +136,19 @@ Current date and time (UTC): {current_time}
 
 Based on the user's request, identify which booking they want to cancel AND extract the cancellation reason.
 
+BATCH MODE DETECTION:
+- If user query contains "reason: xxx" pattern (e.g., "cancel my meeting, reason: I'm too busy")
+- This indicates a batch operation from the orchestrator
+- Automatically select the FIRST meeting in the list
+- Proceed with cancellation immediately
+
 If you have BOTH the booking to cancel AND a reason, respond with:
 CANCEL_READY: booking_uid=<UID>, reason=<cancellation reason>
 
 Otherwise, generate a natural, friendly message to the user:
 - If no bookings exist, tell them there are no events to cancel
-- If you need to know which meeting, ask them to clarify (mention the available meetings)
-- If you need a cancellation reason, ask for one in a friendly way
+- If multiple meetings exist AND no "reason:" pattern, ask which one to cancel
+- If you need a cancellation reason (and not in batch mode), ask for one
 - If the request is ambiguous, ask for more details
 
 Be conversational and helpful. Don't use any special format unless you have all the info for CANCEL_READY."""
@@ -143,12 +168,19 @@ Current date and time (UTC): {current_time}
 
 Based on the user's request, identify which booking they want to reschedule AND the new time.
 
+BATCH MODE DETECTION:
+- If user query contains both "to YYYY-MM-DD" AND "reason: xxx" pattern
+  (e.g., "reschedule my meeting to 2025-10-29 reason: emergency")
+- This indicates a batch operation from the orchestrator
+- Automatically select the FIRST meeting in the list
+- Proceed with rescheduling immediately
+
 If you have BOTH the booking to reschedule AND the new time, respond with:
 RESCHEDULE_READY: booking_uid=<UID>, new_time=<YYYY-MM-DDTHH:MM:00Z>, reason=<optional reason>
 
 Otherwise, generate a natural, friendly message to the user:
 - If no bookings exist, tell them there are no events to reschedule
-- If you need to know which meeting, ask them to clarify (mention the available meetings)
+- If multiple meetings exist AND not in batch mode, ask which one to reschedule
 - If you need to know the new time, ask for it in a friendly way
 - If the request is ambiguous, ask for more details
 - Make sure the new time is in the future
@@ -203,11 +235,33 @@ PLANNING RULES:
 2. Use 24-hour format: 14:00 not 2pm, 09:00 not 9am
 
 3. For book_meeting, you MUST have: date, time, name, email
-   - If ANY is missing, DO NOT create PLAN - ask user for details
+   - If ANY is missing (including "anytime" or vague times), DO NOT create PLAN - ask user for details
+   - User must provide SPECIFIC times (e.g., 9am, 14:00), not "anytime" or "whenever"
 
-4. You can reference previous task results using #E1, #E2 syntax (ReWOO-style):
-   - E1: get_slots(date=2025-10-29)
-   - E2: book_meeting(time=#E1[first_slot], ...)
+4. Variable references:
+   - You can reference previous task results using #E1, #E2 syntax
+   - IMPORTANT: Do NOT use index syntax like #E1[first_slot] - it's not supported
+   - If user says "anytime" or doesn't specify time, ask them for specific times
+   - Example: "I can check availability tomorrow. What specific times would you like? (e.g., 9am, 2pm)"
+
+5. For BATCH operations (cancel/reschedule/book multiple):
+   
+   a) For cancel/reschedule all:
+      - First, use list_events to check existing meetings
+      - Then create MULTIPLE cancel_meeting or reschedule_meeting tasks (estimate 2-5 tasks)
+      - Each task will process ONE meeting automatically (pick first available)
+      - MUST have a reason - if missing, ask user first (DO NOT create PLAN)
+      - Pass reason to EACH task: cancel_meeting(reason=xxx) or reschedule_meeting(reason=xxx, new_date=xxx)
+   
+   b) For book multiple meetings:
+      - User says "book 3 meetings" or "book meetings with Alice and Bob"
+      - Create MULTIPLE book_meeting tasks with different details
+      - Each task MUST have: date, SPECIFIC time, name, email
+      - If user says "anytime" or doesn't provide specific times, ask for them (DO NOT create PLAN)
+      - If ANY detail is missing, ask user first (DO NOT create PLAN)
+      - Extract different names/emails/times from user's message
+   
+   Don't worry if you create more tasks than needed - extra tasks will skip
 
 If you have ALL required information, generate a PLAN:
 PLAN:
@@ -224,14 +278,19 @@ E1: list_events
 E2: book_meeting(date=2025-10-29, time=14:00, name=John, email=john@test.com)
 
 Example 2:
-User: "Check available times tomorrow, then book the first slot with Alice at alice@test.com"
+User: "Check available times tomorrow, then book at 2pm with Alice at alice@test.com"
 Current time: 2025-10-28T10:00:00Z
 Response:
 PLAN:
 E1: get_slots(date=2025-10-29)
-E2: book_meeting(date=2025-10-29, time=09:00, name=Alice, email=alice@test.com, notes=First available slot)
+E2: book_meeting(date=2025-10-29, time=14:00, name=Alice, email=alice@test.com)
 
-Example 3 (Missing info - DO NOT PLAN):
+Example 3 (User says "anytime" - ask for specific times):
+User: "book 2 meetings anytime tomorrow with Li at zl5583@nyu.edu"
+Response:
+I can help you book 2 meetings with Li tomorrow. To ensure they're scheduled at convenient times, what specific times would you like? (e.g., 9am and 2pm)
+
+Example 3b (Missing info - DO NOT PLAN):
 User: "Check my schedule and book tomorrow"
 Response:
 I can help you with that! To book a meeting tomorrow, I'll need:
@@ -239,6 +298,63 @@ I can help you with that! To book a meeting tomorrow, I'll need:
 - Who will attend (name and email)?
 
 Please provide these details.
+
+Example 4 (Batch operation - cancel all with reason):
+User: "cancel all my meetings, I'm too busy"
+Current time: 2025-10-28T10:00:00Z
+Response:
+PLAN:
+E1: list_events
+E2: cancel_meeting(reason=I'm too busy)
+E3: cancel_meeting(reason=I'm too busy)
+E4: cancel_meeting(reason=I'm too busy)
+
+Note: Create 3-5 tasks. Each task will pick the first available meeting. Extra tasks will skip if no meetings left.
+
+Example 5 (Batch operation - reschedule all):
+User: "reschedule all my meetings to tomorrow, emergency came up"
+Current time: 2025-10-28T10:00:00Z
+Response:
+PLAN:
+E1: list_events
+E2: reschedule_meeting(new_date=2025-10-29, reason=emergency came up)
+E3: reschedule_meeting(new_date=2025-10-29, reason=emergency came up)
+E4: reschedule_meeting(new_date=2025-10-29, reason=emergency came up)
+
+Example 6 (Batch operation - missing reason):
+User: "cancel all my meetings"
+Response:
+I can help you cancel all your meetings. Could you please provide a reason for the cancellations?
+
+Example 7 (Batch operation - book multiple meetings):
+User: "book tomorrow at 9am with Alice at alice@test.com and at 2pm with Bob at bob@test.com"
+Current time: 2025-10-28T10:00:00Z
+Response:
+PLAN:
+E1: book_meeting(date=2025-10-29, time=09:00, name=Alice, email=alice@test.com)
+E2: book_meeting(date=2025-10-29, time=14:00, name=Bob, email=bob@test.com)
+
+Example 8 (Batch operation - book multiple, missing info):
+User: "book 3 meetings tomorrow"
+Response:
+I can help you book 3 meetings tomorrow. For each meeting, I'll need:
+- Time
+- Attendee name
+- Attendee email
+
+Please provide these details for all 3 meetings.
+
+Example 9 (Multi-turn - user provides missing times):
+Conversation history:
+System: "I can help you book 2 meetings with Li tomorrow. What specific times would you like?"
+User: "14:00 and 15:00"
+Current time: 2025-10-28T10:00:00Z
+Response:
+PLAN:
+E1: book_meeting(date=2025-10-29, time=14:00, name=Li, email=zl5583@nyu.edu)
+E2: book_meeting(date=2025-10-29, time=15:00, name=Li, email=zl5583@nyu.edu)
+
+Note: Extract name/email from conversation history where system mentioned "with Li at zl5583@nyu.edu"
 
 If information is incomplete, ask for it naturally. Only generate PLAN when you have everything needed.
 """

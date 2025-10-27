@@ -12,6 +12,23 @@ def classifier_node(state: AgentState) -> AgentState:
     user_query = state["user_query"]
     messages = state.get("messages", [])
     
+    # Pre-check: Force multi_step for batch operations (failsafe)
+    query_lower = user_query.lower()
+    batch_keywords = [
+        ("cancel", ["all", "both", "every"]),
+        ("reschedule", ["all", "both", "every"]),
+        ("book", ["multiple", "two", "three", "several", "few"])
+    ]
+    
+    for action, keywords in batch_keywords:
+        if action in query_lower:
+            if any(keyword in query_lower for keyword in keywords):
+                # Definitely a batch operation
+                state["intent"] = "multi_step"
+                state["confidence"] = 1.0
+                logger.info(f" Classification: intent=multi_step, confidence=1.00, query='{user_query[:50]}...' (batch keyword detected)")
+                return state
+    
     llm = ChatOpenAI(
         api_key=get_openai_api_key(),
         model="gpt-4",
