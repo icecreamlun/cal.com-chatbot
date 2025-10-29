@@ -18,14 +18,16 @@ Latest user message: {user_query}
 
 CRITICAL CLASSIFICATION RULES (Check in order):
 
-1. **BATCH OPERATIONS → Always "multi_step"** (highest priority):
+1. **BATCH OPERATIONS & AUTO-SCHEDULE → Always "multi_step"** (highest priority):
    - User mentions "all", "both", "multiple", "every" + action word
+   - User says "anytime", "any time", "whenever", "you pick" for booking
    - Examples that MUST be multi_step:
      * "cancel all my meetings" → multi_step (NOT cancel_meeting!)
      * "cancel both meetings" → multi_step
      * "reschedule all to tomorrow" → multi_step  
      * "book 3 meetings" → multi_step
-     * "book two meetings" → multi_step
+     * "book anytime tomorrow" → multi_step (need to check slots first!)
+     * "book whenever you're free" → multi_step
    - Even if they provide a reason, still multi_step!
 
 2. **SEQUENTIAL OPERATIONS → "multi_step"**:
@@ -234,15 +236,22 @@ PLANNING RULES:
 
 2. Use 24-hour format: 14:00 not 2pm, 09:00 not 9am
 
-3. For book_meeting, you MUST have: date, time, name, email
-   - If ANY is missing (including "anytime" or vague times), DO NOT create PLAN - ask user for details
-   - User must provide SPECIFIC times (e.g., 9am, 14:00), not "anytime" or "whenever"
+3. For book_meeting with "anytime" requests:
+   - Required info: date, name, email, and time constraints (if any)
+   - If user says "anytime", "any time", "whenever", or "you pick":
+     * This becomes a multi-step operation!
+     * Step 1: get_slots(date) to find available times
+     * Step 2: Pick a suitable time based on:
+       - Avoid user's constraints (e.g., "not during dinner 18:00-19:00")
+       - Choose reasonable business hours (9:00-17:00)
+       - Pick first available slot outside restricted times
+     * Step 3: book_meeting(date, TIME, name, email)
+   - If user provides specific time (14:00), just book directly without get_slots
 
 4. Variable references:
-   - You can reference previous task results using #E1, #E2 syntax
+   - You can reference previous task results using #E1, #E2 syntax  
    - IMPORTANT: Do NOT use index syntax like #E1[first_slot] - it's not supported
-   - If user says "anytime" or doesn't specify time, ask them for specific times
-   - Example: "I can check availability tomorrow. What specific times would you like? (e.g., 9am, 2pm)"
+   - Simple replacement only: #E1 will be replaced with the full result text
 
 5. For BATCH operations (cancel/reschedule/book multiple):
    
@@ -285,10 +294,15 @@ PLAN:
 E1: get_slots(date=2025-10-29)
 E2: book_meeting(date=2025-10-29, time=14:00, name=Alice, email=alice@test.com)
 
-Example 3 (User says "anytime" - ask for specific times):
-User: "book 2 meetings anytime tomorrow with Li at zl5583@nyu.edu"
+Example 3 (User says "anytime" - auto-schedule):
+User: "book a meeting tomorrow anytime, not during my dinner time 18:00-19:00, with Li at zl5583@nyu.edu, reason: chatting"
+Current time: 2025-10-28T10:00:00Z
 Response:
-I can help you book 2 meetings with Li tomorrow. To ensure they're scheduled at convenient times, what specific times would you like? (e.g., 9am and 2pm)
+PLAN:
+E1: get_slots(date=2025-10-29)
+E2: book_meeting(date=2025-10-29, time=14:00, name=Li, email=zl5583@nyu.edu, notes=chatting)
+
+Note: From E1 slots, pick a time NOT between 18:00-19:00. Choose a reasonable time like 14:00 (2pm).
 
 Example 3b (Missing info - DO NOT PLAN):
 User: "Check my schedule and book tomorrow"
@@ -344,9 +358,22 @@ I can help you book 3 meetings tomorrow. For each meeting, I'll need:
 
 Please provide these details for all 3 meetings.
 
-Example 9 (Multi-turn - user provides missing times):
+Example 9 (Multi-turn - user says "anytime"):
 Conversation history:
-System: "I can help you book 2 meetings with Li tomorrow. What specific times would you like?"
+System: "I still need to know the preferred time for your meeting tomorrow."
+User: "any time besides the dinner time"
+Previous context: dinner time is 18:00-19:00, meeting with Li at zl5583@nyu.edu, reason: chatting
+Current time: 2025-10-28T10:00:00Z
+Response:
+PLAN:
+E1: get_slots(date=2025-10-29)
+E2: book_meeting(date=2025-10-29, time=14:00, name=Li, email=zl5583@nyu.edu, notes=chatting)
+
+Note: Check available slots, avoid 18:00-19:00, pick a reasonable time like 14:00 (mid-afternoon).
+
+Example 10 (Multi-turn - user provides specific times):
+Conversation history:
+System: "What specific times would you like?"
 User: "14:00 and 15:00"
 Current time: 2025-10-28T10:00:00Z
 Response:
@@ -354,7 +381,7 @@ PLAN:
 E1: book_meeting(date=2025-10-29, time=14:00, name=Li, email=zl5583@nyu.edu)
 E2: book_meeting(date=2025-10-29, time=15:00, name=Li, email=zl5583@nyu.edu)
 
-Note: Extract name/email from conversation history where system mentioned "with Li at zl5583@nyu.edu"
+Note: Extract name/email from conversation history.
 
 If information is incomplete, ask for it naturally. Only generate PLAN when you have everything needed.
 """
