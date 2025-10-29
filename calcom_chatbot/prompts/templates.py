@@ -138,11 +138,13 @@ Current date and time (UTC): {current_time}
 
 Based on the user's request, identify which booking they want to cancel AND extract the cancellation reason.
 
-BATCH MODE DETECTION:
+CRITICAL - BATCH MODE DETECTION:
 - If user query contains "reason: xxx" pattern (e.g., "cancel my meeting, reason: I'm too busy")
-- This indicates a batch operation from the orchestrator
-- Automatically select the FIRST meeting in the list
+- This is a batch operation from the orchestrator
+- YOU MUST automatically select the FIRST meeting in the bookings list
+- DO NOT ask which meeting - just pick the first one
 - Proceed with cancellation immediately
+- This is NON-NEGOTIABLE when "reason:" pattern is present
 
 If you have BOTH the booking to cancel AND a reason, respond with:
 CANCEL_READY: booking_uid=<UID>, reason=<cancellation reason>
@@ -170,12 +172,13 @@ Current date and time (UTC): {current_time}
 
 Based on the user's request, identify which booking they want to reschedule AND the new time.
 
-BATCH MODE DETECTION:
-- If user query contains both "to YYYY-MM-DD" AND "reason: xxx" pattern
-  (e.g., "reschedule my meeting to 2025-10-29 reason: emergency")
-- This indicates a batch operation from the orchestrator
-- Automatically select the FIRST meeting in the list
+CRITICAL - BATCH MODE DETECTION:
+- If user query contains "reason: xxx" pattern (e.g., "reschedule my meeting to 2025-10-29 reason: emergency")
+- This is a batch operation from the orchestrator
+- YOU MUST automatically select the FIRST meeting in the bookings list
+- DO NOT ask which meeting - just pick the first one
 - Proceed with rescheduling immediately
+- This is NON-NEGOTIABLE when "reason:" pattern is present
 
 If you have BOTH the booking to reschedule AND the new time, respond with:
 RESCHEDULE_READY: booking_uid=<UID>, new_time=<YYYY-MM-DDTHH:MM:00Z>, reason=<optional reason>
@@ -256,11 +259,14 @@ PLANNING RULES:
 5. For BATCH operations (cancel/reschedule/book multiple):
    
    a) For cancel/reschedule all:
-      - First, use list_events to check existing meetings
-      - Then create MULTIPLE cancel_meeting or reschedule_meeting tasks (estimate 2-5 tasks)
+      - Then create MULTIPLE cancel_meeting or reschedule_meeting tasks (estimate 2-5 tasks based on typical user needs)
       - Each task will process ONE meeting automatically (pick first available)
-      - MUST have a reason - if missing, ask user first (DO NOT create PLAN)
-      - Pass reason to EACH task: cancel_meeting(reason=xxx) or reschedule_meeting(reason=xxx, new_date=xxx)
+      - MUST have a valid reason (CRITICAL):
+        * If user provides reason (e.g., "I'm busy") → use it
+        * If user explicitly says "without reason", "no reason", "without any reason" → YOU MUST ask for a reason (DO NOT create PLAN)
+        * If reason is completely missing → ask user first (DO NOT create PLAN)
+        * Cal.com API requires a reason - this is mandatory
+      - Pass the SAME reason to EACH task: cancel_meeting(reason=xxx) or reschedule_meeting(reason=xxx, new_date=xxx)
    
    b) For book multiple meetings:
       - User says "book 3 meetings" or "book meetings with Alice and Bob"
@@ -335,7 +341,17 @@ E2: reschedule_meeting(new_date=2025-10-29, reason=emergency came up)
 E3: reschedule_meeting(new_date=2025-10-29, reason=emergency came up)
 E4: reschedule_meeting(new_date=2025-10-29, reason=emergency came up)
 
-Example 6 (Batch operation - missing reason):
+Example 6 (Batch operation - user explicitly says "no reason"):
+User: "cancel all my meetings without any reason"
+Response:
+I understand you want to cancel all meetings. While you mentioned "without any reason," Cal.com requires a cancellation reason for record-keeping. 
+
+Could you provide a simple reason? For example:
+- "Schedule change"
+- "No longer needed"  
+- "Personal reasons"
+
+Example 6b (Batch operation - missing reason):
 User: "cancel all my meetings"
 Response:
 I can help you cancel all your meetings. Could you please provide a reason for the cancellations?

@@ -194,9 +194,22 @@ def format_task_query(action: str, params: dict) -> str:
             query += f", notes={notes}"
         return query
     elif action == "cancel_meeting":
+        reason = params.get("reason", "")
+        if reason:
+            return f"cancel my meeting, reason: {reason}"
         return "cancel my meeting"
     elif action == "reschedule_meeting":
-        return "reschedule my meeting"
+        new_date = params.get("new_date", "")
+        new_time = params.get("new_time", "")
+        reason = params.get("reason", "")
+        parts = ["reschedule my meeting"]
+        if new_date:
+            parts.append(f"to {new_date}")
+        if new_time:
+            parts.append(f"at {new_time}")
+        if reason:
+            parts.append(f"reason: {reason}")
+        return " ".join(parts)
     else:
         return action
 
